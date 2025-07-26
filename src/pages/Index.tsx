@@ -4,7 +4,6 @@ import { ChatHeader } from "@/components/ChatHeader";
 import { ChatBody } from "@/components/ChatBody";
 import { ChatFooter } from "@/components/ChatFooter";
 import { ScrollToBottomButton } from "@/components/ScrollToBottomButton";
-import { VoiceAnimation } from "@/components/VoiceAnimation";
 import { SettingsModal } from "@/components/SettingsModal";
 import { ProfilesModal } from "@/components/ProfilesModal";
 import { MemoryModal } from "@/components/MemoryModal";
@@ -14,7 +13,6 @@ import { searchBrave } from "@/services/searchService";
 import { Storage } from "@/utils/storage";
 import { fetchRSSHeadlines } from "@/services/rssService";
 import { getMemories, saveConversationMemory } from "@/utils/memoryUtils";
-import { setVoiceModeActive } from "@/js/voice-mode";
 
 function weatherCodeToText(code: number): string {
   const map: Record<number, string> = {
@@ -89,11 +87,9 @@ const Index = () => {
   const [currentConversation, setCurrentConversation] = useState<Conversation | null>(null);
   const [currentProfile, setCurrentProfile] = useState<Profile | null>(null);
   const [isTyping, setIsTyping] = useState(false);
-  const [showVoiceAnimation, setShowVoiceAnimation] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
   const [showProfiles, setShowProfiles] = useState(false);
   const [showMemory, setShowMemory] = useState(false);
-  const [isVoiceMode, setIsVoiceMode] = useState(false);
   const [editingMessage, setEditingMessage] = useState<Message | null>(null);
   const chatBodyRef = useRef<HTMLDivElement>(null);
   const [showScrollButton, setShowScrollButton] = useState(false);
@@ -681,18 +677,6 @@ const Index = () => {
   };
 
 
-  const handleVoiceToggle = () => {
-    const newState = !isVoiceMode;
-    setIsVoiceMode(newState);
-    setVoiceModeActive(newState);
-    if (newState) {
-      setShowVoiceAnimation(true);
-      toast.success("Voice mode activated");
-    } else {
-      setShowVoiceAnimation(false);
-      toast.success("Voice mode deactivated");
-    }
-  };
 
   const handleSelectConversation = (conversation: Conversation) => {
     setCurrentConversation(conversation);
@@ -871,26 +855,11 @@ const Index = () => {
 
         <ChatFooter
           onSendMessage={editingMessage ? handleSendEditedMessage : handleSendMessage}
-          onVoiceToggle={handleVoiceToggle}
-          isVoiceMode={isVoiceMode}
           editingMessage={editingMessage?.content}
         />
       </div>
 
-      {showVoiceAnimation && (
-        <VoiceAnimation
-          isVisible={showVoiceAnimation}
-          onClose={() => {
-            setShowVoiceAnimation(false);
-            setIsVoiceMode(false);
-            setVoiceModeActive(false);
-          }}
-          currentProfile={currentProfile}
-          getMemoryPrompt={getMemoryPrompt}
-          buildSystemPrompt={buildSystemPrompt}
-          onSendMessage={handleSendMessage}
-        />
-      )}
+
 
       <SettingsModal
         isOpen={showSettings}

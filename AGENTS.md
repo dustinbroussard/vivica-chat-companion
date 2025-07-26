@@ -1,20 +1,19 @@
 # AGENTS.md
 
 ## Project Name
-Vivica: Local-First AI Assistant with Voice and Memory
+Vivica: Local-First AI Assistant with Deep Memory
 
 ## Purpose
-Vivica is a local-first AI assistant web app with text and voice modes. It supports customizable AI personas, memory management, offline PWA usage, and Android WebView integration.
+Vivica is a local-first AI assistant web app focused on text chat. It supports customizable AI personas, memory management, offline PWA usage, and Android WebView integration.
 
-Users can chat or talk to Vivica using multiple AI personas (e.g., snarky roaster, helpful assistant). Conversations, memory snippets, and settings are stored in IndexedDB for persistence. personas define LLM behavior (model, system prompt, temperature, etc.).
+Users can chat with Vivica using multiple AI personas (e.g., snarky roaster, helpful assistant). Conversations, memory snippets, and settings are stored in IndexedDB for persistence. personas define LLM behavior (model, system prompt, temperature, etc.).
 
 ## Key Features
-- Chat and voice modes using the same memory and persona
+- Chat mode with shared memory across personas
 - Local-only memory system (editable, taggable, infinite)
 - AI persona system with persistent config per persona
 - IndexedDB for conversations, messages, memory, personas
 - Theme switching (dark/light + color themes)
-- Voice support via Web Speech API and/or Google TTS
 - Android bridge for native logs and toasts
 - Fully installable PWA
 

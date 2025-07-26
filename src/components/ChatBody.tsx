@@ -254,10 +254,12 @@ export const ChatBody = forwardRef<HTMLDivElement, ChatBodyProps>(
                     className={`message-bubble ${message.role} ${
                       message.failed ? 'border-accent/50 bg-accent/10' : ''
                     } px-3 py-2 rounded-2xl max-w-[95vw] sm:max-w-2xl break-words ${
-                      message.role === 'user' ? 'rounded-br-none' : 'rounded-bl-none'
+                      message.role === 'user'
+                        ? 'rounded-br-none ml-8'
+                        : 'rounded-bl-none mr-8'
                     }`}
                   >
-                    <div className="prose dark:prose-invert break-words max-w-none">
+                    <div className="prose dark:prose-invert break-words max-w-none text-sm leading-snug">
                       <ReactMarkdown
                         remarkPlugins={[remarkGfm]}
                         components={{

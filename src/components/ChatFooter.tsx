@@ -1,17 +1,15 @@
 
 import { useState, useRef, useEffect } from "react";
-import { Send, Mic, MicOff } from "lucide-react";
+import { Send } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 
 interface ChatFooterProps {
   onSendMessage: (message: string) => void;
-  onVoiceToggle: () => void;
-  isVoiceMode: boolean;
   editingMessage?: string | null;
 }
 
-export const ChatFooter = ({ onSendMessage, onVoiceToggle, isVoiceMode, editingMessage }: ChatFooterProps) => {
+export const ChatFooter = ({ onSendMessage, editingMessage }: ChatFooterProps) => {
   const [message, setMessage] = useState("");
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
@@ -53,24 +51,6 @@ export const ChatFooter = ({ onSendMessage, onVoiceToggle, isVoiceMode, editingM
           <div className="text-xs text-muted-foreground mb-2">Editing previous message</div>
         )}
         <form onSubmit={handleSubmit} className="flex items-end gap-3">
-          {/* Voice Mode Button */}
-          <Button
-            type="button"
-            variant="outline"
-            size="icon"
-            onClick={onVoiceToggle}
-            className={`${
-              isVoiceMode
-                ? 'bg-accent/20 border-accent/40 text-accent-foreground/80 pulse-glow'
-                : 'hover:bg-muted'
-            } transition-all duration-200`}
-          >
-            {isVoiceMode ? (
-              <MicOff className="w-4 h-4" />
-            ) : (
-              <Mic className="w-4 h-4" />
-            )}
-          </Button>
 
           {/* Message Input */}
           <div className="flex-1 relative">
@@ -81,7 +61,6 @@ export const ChatFooter = ({ onSendMessage, onVoiceToggle, isVoiceMode, editingM
               onKeyDown={handleKeyDown}
               placeholder="Type your message..."
               className="min-h-[44px] max-h-[120px] resize-none pr-3 bg-background border-input"
-              disabled={isVoiceMode}
             />
             
           </div>
@@ -90,7 +69,7 @@ export const ChatFooter = ({ onSendMessage, onVoiceToggle, isVoiceMode, editingM
           <Button
             type="submit"
             size="icon"
-            disabled={!message.trim() || isVoiceMode}
+            disabled={!message.trim()}
             className="bg-accent text-accent-foreground hover:bg-accent/90"
           >
             <Send className="w-4 h-4" />

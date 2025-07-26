@@ -15,6 +15,24 @@ interface WelcomeMessage {
   createdAt: string;
 }
 
+export interface ConversationMessage {
+  id: string;
+  content: string;
+  role: 'user' | 'assistant';
+  timestamp: string;
+  failed?: boolean;
+  isCodeResponse?: boolean;
+}
+
+export interface ConversationEntry {
+  id: string;
+  title: string;
+  messages: ConversationMessage[];
+  lastMessage?: string;
+  timestamp: string;
+  autoTitled?: boolean;
+}
+
 interface VivicaDb extends DBSchema {
   memories: {
     key: string;
@@ -25,20 +43,25 @@ interface VivicaDb extends DBSchema {
     key: number;
     value: WelcomeMessage;
   };
+  conversations: {
+    key: string;
+    value: ConversationEntry;
+  };
 }
 
 let dbPromise: Promise<IDBPDatabase<VivicaDb>> | null = null;
 
 function getDb() {
   if (!dbPromise) {
-    dbPromise = openDB<VivicaDb>('vivica-db', 1, {
-      upgrade(db) {
-        if (!db.objectStoreNames.contains('memories')) {
+    dbPromise = openDB<VivicaDb>('vivica-db', 2, {
+      upgrade(db, oldVersion) {
+        if (oldVersion < 1) {
           const store = db.createObjectStore('memories', { keyPath: 'id' });
           store.createIndex('by-profile', 'profileId');
-        }
-        if (!db.objectStoreNames.contains('welcomeMessages')) {
           db.createObjectStore('welcomeMessages', { keyPath: 'id', autoIncrement: true });
+        }
+        if (oldVersion < 2) {
+          db.createObjectStore('conversations', { keyPath: 'id' });
         }
       }
     });
@@ -88,5 +111,30 @@ export async function saveWelcomeMessage(text: string) {
 export async function getCachedWelcomeMessages() {
   const db = await getDb();
   return db.getAll('welcomeMessages');
+}
+
+// Conversation persistence helpers
+export async function getAllConversationsFromDb(): Promise<ConversationEntry[]> {
+  const db = await getDb();
+  return db.getAll('conversations');
+}
+
+export async function saveConversationsToDb(conversations: ConversationEntry[]) {
+  const db = await getDb();
+  const tx = db.transaction('conversations', 'readwrite');
+  for (const conv of conversations) {
+    await tx.store.put(conv);
+  }
+  await tx.done;
+}
+
+export async function deleteConversationFromDb(id: string) {
+  const db = await getDb();
+  await db.delete('conversations', id);
+}
+
+export async function clearAllConversationsFromDb() {
+  const db = await getDb();
+  await db.clear('conversations');
 }
 

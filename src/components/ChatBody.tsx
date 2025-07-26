@@ -258,7 +258,7 @@ export const ChatBody = forwardRef<HTMLDivElement, ChatBodyProps>(
                       message.failed ? 'border-accent/50 bg-accent/10' : ''
                     } px-3 py-2 rounded-2xl max-w-[95vw] sm:max-w-2xl break-words ${
                       message.role === 'user'
-                        ? 'rounded-br-none ml-6 mr-6'
+                        ? 'rounded-br-none ml-6 mr-2000'
                         : 'rounded-bl-none mr-6 ml-6'
                     }`}
                   >

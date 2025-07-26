@@ -612,6 +612,8 @@
 }
 
 .message-bubble.user {
+  position: left;
+  max-width: 90%;
   background: var(--user-bubble-bg);
   color: var(--user-bubble-text);
   border-bottom-right-radius: 6px;
@@ -619,6 +621,8 @@
 }
 
 .message-bubble.assistant {
+  position: right;
+  max-width: 95%;
   background: var(--assistant-bubble-bg);
   color: var(--assistant-bubble-text);
   border-bottom-left-radius: 6px;

@@ -1,12 +1,9 @@
-import { Skeleton } from "@/components/ui/skeleton";
+import { Loader2 } from "lucide-react";
 
 export function CodeBlockLoader() {
   return (
-    <div className="code-block-container space-y-2" role="status" aria-busy="true">
-      <Skeleton className="code-block" />
-      <div className="h-1 w-full bg-muted overflow-hidden rounded relative">
-        <div className="absolute inset-0 w-1/3 bg-accent animate-indeterminate" />
-      </div>
+    <div className="flex items-center justify-center py-8" role="status" aria-busy="true">
+      <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
       <span className="sr-only">AI is generating code...</span>
     </div>
   );

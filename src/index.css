@@ -654,6 +654,8 @@
     "Liberation Mono", "Courier New", monospace;
   border: 1px solid hsl(var(--border-custom));
   box-shadow: 0 1px 4px hsl(var(--shadow));
+  padding-left: 0.5rem;
+  padding-right: 0.5rem;
 }
 
 /* Inline code styling */
@@ -699,9 +701,9 @@
   color: #f6f8fa;
   font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas,
     "Liberation Mono", "Courier New", monospace;
-  font-size: 0.75rem;
+  font-size: 0.6875rem;
   line-height: 1.4;
-  padding: 0.5rem;
+  padding: 0.25rem 0.375rem;
   border-radius: 0.375rem;
   overflow-x: hidden;
   white-space: pre-wrap;

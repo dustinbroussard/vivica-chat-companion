@@ -16,6 +16,7 @@ import { toast } from "sonner";
 import { ThemeSelector } from "./ThemeSelector";
 import { ApiKeyInput } from "./ApiKeyInput";
 import { DEFAULT_RSS_FEED } from "@/utils/constants";
+import { clearAllConversationsFromDb } from "@/utils/indexedDb";
 
 interface SettingsModalProps {
   isOpen: boolean;
@@ -57,8 +58,9 @@ export const SettingsModal = ({ isOpen, onClose }: SettingsModalProps) => {
     onClose();
   };
 
-  const handleClearAllConversations = () => {
+  const handleClearAllConversations = async () => {
     if (confirm("Are you sure you want to clear all conversations? This action cannot be undone.")) {
+      await clearAllConversationsFromDb();
       localStorage.removeItem('vivica-conversations');
       localStorage.removeItem('vivica-current-conversation');
       toast.success("All conversations cleared");

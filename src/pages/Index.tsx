@@ -9,7 +9,7 @@ import { ProfilesModal } from "@/components/ProfilesModal";
 import { MemoryModal } from "@/components/MemoryModal";
 import { toast } from "sonner";
 import { ChatService, ChatMessage } from "@/services/chatService";
-import { searchBrave } from "@/services/searchService";
+import { searchBrave, BRAVE_SEARCH_TOOL, formatBraveResults } from "@/services/searchService";
 import { Storage } from "@/utils/storage";
 import { fetchRSSHeadlines } from "@/services/rssService";
 import { getMemories, saveConversationMemory } from "@/utils/memoryUtils";
@@ -517,7 +517,80 @@ const Index = () => {
       }
     }
 
+    const braveKey = localStorage.getItem('braveApiKey');
     const chatService = new ChatService(apiKey);
+
+    if (!searchMatch && braveKey) {
+      try {
+        const first = await chatService.sendMessageJson({
+          model: currentProfile.model,
+          messages: chatMessages,
+          temperature: currentProfile.temperature,
+          max_tokens: currentProfile.maxTokens,
+          tools: [BRAVE_SEARCH_TOOL],
+          tool_choice: 'auto'
+        });
+
+        const choice = first.choices?.[0];
+        if (choice?.finish_reason === 'tool_calls' && choice.message?.tool_calls) {
+          chatMessages.push(choice.message);
+          for (const call of choice.message.tool_calls) {
+            if (call.function?.name === 'search_brave') {
+              const args = JSON.parse(call.function.arguments || '{}');
+              const results = await searchBrave(args.query, braveKey);
+              const toolMsg: ChatMessage = {
+                role: 'tool',
+                tool_call_id: call.id,
+                content: `Search results for "${args.query}":\n\n${formatBraveResults(results)}`
+              };
+              chatMessages.push(toolMsg);
+            }
+          }
+
+          const finalData = await chatService.sendMessageJson({
+            model: currentProfile.model,
+            messages: chatMessages,
+            temperature: currentProfile.temperature,
+            max_tokens: currentProfile.maxTokens
+          });
+
+          const finalContent = finalData.choices?.[0]?.message?.content || '';
+
+          const finalMsg: Message = {
+            id: (Date.now() + 1).toString(),
+            content: finalContent,
+            role: 'assistant',
+            timestamp: new Date(),
+            profileId: currentProfile.id
+          };
+
+          const finalConv = {
+            ...updatedConversation,
+            messages: [...updatedConversation.messages, finalMsg],
+            lastMessage: finalContent,
+            timestamp: new Date()
+          };
+
+          setCurrentConversation(finalConv);
+          setConversations(prev => prev.map(conv => conv.id === conversation.id ? finalConv : conv));
+
+          if (!conversation.autoTitled) {
+            await handleGenerateTitle(finalConv);
+          }
+
+          setIsTyping(false);
+          return;
+        }
+        // If no tool calls, fall through to streaming
+        chatMessages = [
+          { role: 'system', content: systemPrompt },
+          ...updatedConversation.messages.map(m => ({ role: m.role, content: m.content })),
+          choice.message
+        ];
+      } catch (err) {
+        console.warn('Brave tool call failed', err);
+      }
+    }
 
     const assistantMessage: Message = {
       id: (Date.now() + 1).toString(),

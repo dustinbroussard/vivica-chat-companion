@@ -136,7 +136,7 @@ export class ChatService {
     const settings = JSON.parse(localStorage.getItem('vivica-settings') || '{}');
     const keys = [
       this.apiKey,                   // Primary key from constructor
-      settings.apiKey1 || '',        // Secondary key from settings  
+      settings.apiKey1 || '',        // Secondary key from settings
       settings.apiKey2 || '',        // Tertiary key from settings
       settings.apiKey3 || ''         // Additional fallback key
     ].filter(key => key?.trim());    // Filter out empty keys
@@ -149,34 +149,46 @@ export class ChatService {
 
     // Only show visual feedback if we have multiple keys to try
     const showRetryFeedback = keys.length > 1;
-    
+
+    // Determine starting key based on last success
+    const saved = localStorage.getItem('vivica-active-api-key');
+    let startIndex = saved ? keys.indexOf(saved) : -1;
+    if (startIndex === -1) {
+      startIndex = keys.indexOf(this.apiKey);
+      if (startIndex === -1) startIndex = 0;
+    }
+
+    const rotate = (i: number) => (startIndex + i) % keys.length;
+
     // Try each key in order until one succeeds
-    for (const [index, key] of keys.entries()) {
+    for (let attempt = 0; attempt < keys.length; attempt++) {
+      const idx = rotate(attempt);
+      const key = keys[idx];
       try {
-        if (index > 0 && showRetryFeedback) {
-          toast.message(`Connecting with backup key ${index + 1}...`, {
+        if (attempt > 0 && showRetryFeedback) {
+          toast.message(`Connecting with backup key ${attempt + 1}...`, {
             duration: 1000,
             position: 'bottom-center'
           });
-          // Add slight delay between retries
           await new Promise(resolve => setTimeout(resolve, 300));
         }
 
         const response = await this.trySendWithKey(request, key);
         this.trackKeyUsage(key, true);
-        
-        if (index > 0 && showRetryFeedback) {
+        localStorage.setItem('vivica-active-api-key', key);
+
+        if (attempt > 0 && showRetryFeedback) {
           toast.success(`Connected with backup key`, {
             duration: 2000,
             position: 'bottom-center'
           });
         }
-        
+
         return response;
       } catch (error) {
+        this.trackKeyUsage(key, false);
         lastError = error as Error;
-        // Continue to next key unless it's the last attempt
-        if (index === keys.length - 1) break;
+        if (attempt === keys.length - 1) break;
       }
     }
 

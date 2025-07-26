@@ -614,7 +614,6 @@
 .message-bubble.user {
   background: var(--user-bubble-bg);
   color: var(--user-bubble-text);
-  margin-left: auto;
   border-bottom-right-radius: 6px;
   border: var(--user-bubble-border);
 }
@@ -622,7 +621,6 @@
 .message-bubble.assistant {
   background: var(--assistant-bubble-bg);
   color: var(--assistant-bubble-text);
-  margin-right: auto;
   border-bottom-left-radius: 6px;
   border: var(--assistant-bubble-border);
 }

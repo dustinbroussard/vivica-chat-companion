@@ -86,6 +86,8 @@ export const ChatBody = forwardRef<HTMLDivElement, ChatBodyProps>(
     const [welcomeError, setWelcomeError] = useState(false);
     const [animateWelcome, setAnimateWelcome] = useState(false);
     const lastWelcomeRef = useRef('');
+    const lastMessage = conversation?.messages?.[conversation.messages.length - 1];
+    const showThinking = isTyping && !(lastMessage?.isCodeResponse);
 
     const fetchWelcome = useCallback(async () => {
       if (!conversation || conversation.messages.length) return;
@@ -228,7 +230,7 @@ export const ChatBody = forwardRef<HTMLDivElement, ChatBodyProps>(
                 key={message.id}
                 className={`flex flex-col ${
                   message.role === 'user' ? 'items-end' : 'items-start'
-                } mb-2 slide-up group`}
+                } mb-2 ${message.isCodeResponse ? '' : 'slide-up'} group`}
               >
                 <div
                   className={`flex items-center gap-2 mb-0.5 ${
@@ -255,6 +257,8 @@ export const ChatBody = forwardRef<HTMLDivElement, ChatBodyProps>(
                   
                   <div
                     className={`message-bubble ${message.role} ${
+                      message.isCodeResponse ? 'code-bubble' : ''
+                    } ${
                       message.failed ? 'border-accent/50 bg-accent/10' : ''
                     } px-3 py-2 rounded-2xl max-w-[95vw] sm:max-w-2xl break-words ${
                       message.role === 'user'
@@ -380,7 +384,7 @@ export const ChatBody = forwardRef<HTMLDivElement, ChatBodyProps>(
 
 
             <div ref={messagesEndRef} />
-            {isTyping && (
+            {showThinking && (
               <div className="px-6 pt-2">
                 <ThinkingIndicator />
               </div>

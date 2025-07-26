@@ -26,3 +26,23 @@ export async function searchBrave(query: string, apiKey: string): Promise<BraveR
   const data: BraveSearchResponse = await resp.json();
   return data.web?.results || [];
 }
+
+export function formatBraveResults(results: BraveResult[]): string {
+  return results.map((r, i) => `${i + 1}. **${r.title}**\n${r.description}\n${r.url}`).join('\n\n');
+}
+
+export const BRAVE_SEARCH_TOOL = {
+  type: 'function',
+  function: {
+    name: 'search_brave',
+    description: 'Search the web using Brave Search and return the top results.',
+    parameters: {
+      type: 'object',
+      properties: {
+        query: { type: 'string', description: 'Search query' }
+      },
+      required: ['query']
+    }
+  }
+};
+

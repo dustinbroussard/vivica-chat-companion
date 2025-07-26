@@ -1,8 +1,9 @@
 
 import { toast } from "@/components/ui/sonner";
 export interface ChatMessage {
-  role: 'user' | 'assistant' | 'system';
+  role: 'user' | 'assistant' | 'system' | 'tool';
   content: string;
+  tool_call_id?: string;
 }
 
 export interface ChatRequest {
@@ -12,6 +13,8 @@ export interface ChatRequest {
   max_tokens?: number;
   stream?: boolean;
   isCodeRequest?: boolean; // Flag for code requests
+  tools?: Record<string, unknown>[];
+  tool_choice?: 'auto' | 'none' | {name: string};
   profile?: {  // Include full profile for model routing
     model: string;
     codeModel: string;
@@ -186,6 +189,11 @@ export class ChatService {
     
     console.error('OpenRouter API failed after all attempts:', errorMsg);
     throw new Error(errorMsg);
+  }
+
+  async sendMessageJson<T = unknown>(request: ChatRequest): Promise<T> {
+    const resp = await this.sendMessage({ ...request, stream: false });
+    return resp.json();
   }
 
 

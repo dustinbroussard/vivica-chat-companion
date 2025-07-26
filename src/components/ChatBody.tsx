@@ -3,6 +3,7 @@ import { forwardRef, useEffect, useRef, useState, useCallback } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { RotateCcw, Copy, Pencil } from "lucide-react";
+import { CodeLoader } from "./CodeLoader";
 import { CodeBlock } from "./CodeBlock";
 import { CodeBlockLoader } from "./CodeBlockLoader";
 import { Button } from "@/components/ui/button";
@@ -271,6 +272,17 @@ export const ChatBody = forwardRef<HTMLDivElement, ChatBodyProps>(
                                 <code className="inline-code" {...props}>{children}</code>
                               );
                             }
+                            
+                            // Check if we're streaming and this is a partial code block
+                            const isStreaming = isTyping && index === conversation.messages.length - 1;
+                            const isPartialCode = typeof children === 'string' && 
+                              (children.trim() === '' || 
+                               !children.trim().endsWith('```'));
+                            
+                            if (isStreaming && isPartialCode) {
+                              return <CodeLoader className="w-full" />;
+                            }
+                            
                             return (
                               <CodeBlock className={className}>{children}</CodeBlock>
                             );

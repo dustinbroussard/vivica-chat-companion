@@ -45,6 +45,9 @@ export class ChatService {
     lastUsedKey: '',
   };
 
+  // Remember the last working key across instances
+  private static activeKey: string | null = null;
+
   constructor(apiKey: string) {
     this.apiKey = apiKey;
     this.initKeyTelemetry();
@@ -82,6 +85,18 @@ export class ChatService {
     }
     
     this.saveKeyTelemetry();
+  }
+
+  private static loadActiveKey(): string | null {
+    if (ChatService.activeKey !== null) return ChatService.activeKey;
+    const saved = localStorage.getItem('vivica-active-api-key');
+    ChatService.activeKey = saved || null;
+    return ChatService.activeKey;
+  }
+
+  private static setActiveKey(key: string) {
+    ChatService.activeKey = key;
+    localStorage.setItem('vivica-active-api-key', key);
   }
 
   private async trySendWithKey(request: ChatRequest, apiKey: string): Promise<Response> {
@@ -135,11 +150,13 @@ export class ChatService {
     // Get all API keys from storage - constructor key first, then settings keys
     const settings = JSON.parse(localStorage.getItem('vivica-settings') || '{}');
     const keys = [
-      this.apiKey,                   // Primary key from constructor
-      settings.apiKey1 || '',        // Secondary key from settings
-      settings.apiKey2 || '',        // Tertiary key from settings
-      settings.apiKey3 || ''         // Additional fallback key
-    ].filter(key => key?.trim());    // Filter out empty keys
+      this.apiKey,
+      settings.apiKey1 || '',
+      settings.apiKey2 || '',
+      settings.apiKey3 || ''
+    ]
+      .map(k => k.trim())
+      .filter(Boolean);
 
     if (keys.length === 0) {
       throw new Error('No valid API keys configured. Please check your settings.');
@@ -151,8 +168,8 @@ export class ChatService {
     const showRetryFeedback = keys.length > 1;
 
     // Determine starting key based on last success
-    const saved = localStorage.getItem('vivica-active-api-key');
-    let startIndex = saved ? keys.indexOf(saved) : -1;
+    const active = ChatService.loadActiveKey();
+    let startIndex = active ? keys.indexOf(active) : -1;
     if (startIndex === -1) {
       startIndex = keys.indexOf(this.apiKey);
       if (startIndex === -1) startIndex = 0;
@@ -163,7 +180,7 @@ export class ChatService {
     // Try each key in order until one succeeds
     for (let attempt = 0; attempt < keys.length; attempt++) {
       const idx = rotate(attempt);
-      const key = keys[idx];
+      const key = keys[idx].trim();
       try {
         if (attempt > 0 && showRetryFeedback) {
           toast.message(`Connecting with backup key ${attempt + 1}...`, {
@@ -175,7 +192,7 @@ export class ChatService {
 
         const response = await this.trySendWithKey(request, key);
         this.trackKeyUsage(key, true);
-        localStorage.setItem('vivica-active-api-key', key);
+        ChatService.setActiveKey(key);
 
         if (attempt > 0 && showRetryFeedback) {
           toast.success(`Connected with backup key`, {

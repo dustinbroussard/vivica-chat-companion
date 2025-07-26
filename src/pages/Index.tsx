@@ -55,6 +55,8 @@ interface Message {
   timestamp: Date;
   failed?: boolean;
   profileId?: string;
+  isCodeResponse?: boolean;
+  codeLoading?: boolean;
 }
 
 interface Conversation {
@@ -93,6 +95,26 @@ const Index = () => {
   const [editingMessage, setEditingMessage] = useState<Message | null>(null);
   const chatBodyRef = useRef<HTMLDivElement>(null);
   const [showScrollButton, setShowScrollButton] = useState(false);
+
+  const parseStreamingContent = (text: string) => {
+    const regex = /```/g;
+    let match;
+    let openIndex = -1;
+    let open = false;
+    while ((match = regex.exec(text)) !== null) {
+      if (open) {
+        open = false;
+        openIndex = -1;
+      } else {
+        open = true;
+        openIndex = match.index;
+      }
+    }
+    if (open && openIndex !== -1) {
+      return { display: text.slice(0, openIndex), loading: true } as const;
+    }
+    return { display: text, loading: false } as const;
+  };
 
   // Initialize default profiles and load data
   useEffect(() => {
@@ -503,6 +525,7 @@ const Index = () => {
       role: 'assistant',
       timestamp: new Date(),
       profileId: currentProfile.id,
+      codeLoading: false,
     };
 
     const streamingConversation = {
@@ -543,20 +566,37 @@ const Index = () => {
 
         const token = typeof chunk === 'string' ? chunk : chunk.content;
         fullContent += token;
+        const parsed = parseStreamingContent(fullContent);
         setCurrentConversation(prev => {
           if (!prev) return prev;
           const msgs = prev.messages.map(msg =>
-            msg.id === assistantMessage.id ? { ...msg, content: fullContent, isCodeResponse: isCodeResp } : msg
+            msg.id === assistantMessage.id
+              ? {
+                  ...msg,
+                  content: parsed.display,
+                  isCodeResponse: isCodeResp,
+                  codeLoading: parsed.loading,
+                }
+              : msg
           );
-          return { ...prev, messages: msgs, lastMessage: fullContent };
+          return { ...prev, messages: msgs, lastMessage: parsed.display };
         });
-        setConversations(prev => prev.map(conv => {
-          if (conv.id !== conversation.id) return conv;
-          const msgs = conv.messages.map(msg =>
-            msg.id === assistantMessage.id ? { ...msg, content: fullContent, isCodeResponse: isCodeResp } : msg
-          );
-          return { ...conv, messages: msgs, lastMessage: fullContent, timestamp: new Date() };
-        }));
+        setConversations(prev =>
+          prev.map(conv => {
+            if (conv.id !== conversation.id) return conv;
+            const msgs = conv.messages.map(msg =>
+              msg.id === assistantMessage.id
+                ? {
+                    ...msg,
+                    content: parsed.display,
+                    isCodeResponse: isCodeResp,
+                    codeLoading: parsed.loading,
+                  }
+                : msg
+            );
+            return { ...conv, messages: msgs, lastMessage: parsed.display, timestamp: new Date() };
+          })
+        );
 
         if (chatBodyRef.current) {
           // Keep auto-scrolling while streaming only if the user is already
@@ -571,7 +611,7 @@ const Index = () => {
       }
 
       // Conversation finished streaming; attempt auto-title if needed
-      const finalMsg = { ...assistantMessage, content: fullContent, isCodeResponse: isCodeResp };
+      const finalMsg = { ...assistantMessage, content: fullContent, isCodeResponse: isCodeResp, codeLoading: false };
       const finalConv: Conversation = {
         ...updatedConversation,
         messages: [...updatedConversation.messages, finalMsg],

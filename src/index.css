@@ -60,8 +60,9 @@
     --user-bubble-text: hsl(var(--primary));
     --user-bubble-border: 1px solid hsl(var(--border-custom));
     /* Reverse colors for the assistant bubble */
-    --assistant-bubble-bg: hsl(var(--primary));
-    --assistant-bubble-text: hsl(var(--primary-foreground));
+    /* Assistant bubble always uses inverse of user colors */
+    --assistant-bubble-bg: var(--user-bubble-text);
+    --assistant-bubble-text: var(--user-bubble-bg);
     --assistant-bubble-border: 1px solid hsl(var(--border-custom));
     --gradient-primary: linear-gradient(135deg, hsl(var(--bg-primary)) 0%, hsl(var(--bg-hover)) 100%);
     --gradient-accent: linear-gradient(135deg, hsl(var(--theme-primary)) 0%, hsl(var(--theme-accent)) 100%);
@@ -718,8 +719,8 @@
 }
 
 .code-block {
-  background: hsl(var(--bg-tertiary) / 0.9);
-  color: hsl(var(--foreground));
+  background: #f4f4f5;
+  color: #1a1a1a;
   font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas,
     "Liberation Mono", "Courier New", monospace;
   font-size: 0.6875rem;

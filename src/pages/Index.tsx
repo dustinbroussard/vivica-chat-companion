@@ -13,6 +13,12 @@ import { searchBrave } from "@/services/searchService";
 import { Storage } from "@/utils/storage";
 import { fetchRSSHeadlines } from "@/services/rssService";
 import { getMemories, saveConversationMemory } from "@/utils/memoryUtils";
+import {
+  getAllConversationsFromDb,
+  saveConversationsToDb,
+  deleteConversationFromDb,
+  ConversationEntry,
+} from "@/utils/indexedDb";
 
 function weatherCodeToText(code: number): string {
   const map: Record<number, string> = {
@@ -224,30 +230,37 @@ const Index = () => {
     }
   };
 
-  const loadConversations = () => {
-    const saved = localStorage.getItem('vivica-conversations');
+  const loadConversations = async () => {
     const savedCurrent = localStorage.getItem('vivica-current-conversation');
-    
-    if (saved) {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const parsedConversations = JSON.parse(saved).map((conv: any) => ({
+    let convs: ConversationEntry[] = await getAllConversationsFromDb();
+
+    if (convs.length === 0) {
+      const legacy = localStorage.getItem('vivica-conversations');
+      if (legacy) {
+        convs = JSON.parse(legacy) as ConversationEntry[];
+        await saveConversationsToDb(convs);
+        localStorage.removeItem('vivica-conversations');
+      }
+    }
+
+    if (convs.length > 0) {
+      const parsedConversations = convs.map((conv: ConversationEntry) => ({
         ...conv,
         timestamp: new Date(conv.timestamp),
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        messages: conv.messages.map((msg: any) => ({
+        messages: conv.messages.map((msg) => ({
           ...msg,
           timestamp: new Date(msg.timestamp)
         })),
         autoTitled: conv.autoTitled || false
       }));
       setConversations(parsedConversations);
-      
+
       if (savedCurrent) {
         const current = parsedConversations.find((conv: Conversation) => conv.id === savedCurrent);
         if (current) {
           setCurrentConversation(current);
         }
-      } else if (parsedConversations.length > 0) {
+      } else {
         setCurrentConversation(parsedConversations[0]);
       }
     } else {
@@ -255,10 +268,20 @@ const Index = () => {
     }
   };
 
-  // Save conversations to localStorage whenever they change
+  // Persist conversations to IndexedDB whenever they change
   useEffect(() => {
     if (conversations.length > 0) {
-      localStorage.setItem('vivica-conversations', JSON.stringify(conversations));
+      const toSave = conversations.map(conv => ({
+        ...conv,
+        timestamp: conv.timestamp.toISOString(),
+        messages: conv.messages.map(m => ({
+          ...m,
+          timestamp: m.timestamp.toISOString(),
+        }))
+      }));
+      saveConversationsToDb(toSave).catch(e =>
+        console.warn('Failed to save conversations', e)
+      );
     }
   }, [conversations]);
 
@@ -726,6 +749,10 @@ const Index = () => {
   const handleDeleteConversation = (conversationId: string) => {
     const newConversations = conversations.filter(conv => conv.id !== conversationId);
     setConversations(newConversations);
+
+    deleteConversationFromDb(conversationId).catch(e =>
+      console.warn('Failed to delete conversation', e)
+    );
     
     if (currentConversation?.id === conversationId) {
       if (newConversations.length > 0) {

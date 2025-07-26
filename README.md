@@ -5,8 +5,8 @@
 
 ## Features
 
-- **True Local-First Design:**  
-  All chat, memory, API keys, and settings are stored _locally_. No cloud sync, no account needed, and your data is yours.
+- **True Local-First Design:**
+  All chat, memory, API keys, and settings are stored _locally_. No cloud sync, no account needed, and your data is yours. Conversations are persisted in **IndexedDB** for extra durability.
 
 - **Personalities & Personas:**  
   - **Vivica** is the always-on, never-deletable default persona:  

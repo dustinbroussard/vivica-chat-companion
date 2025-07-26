@@ -35,6 +35,7 @@ export const ThemeProvider = ({ children }: { children: React.ReactNode }) => {
 
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', `${color}-${variant}`);
+    document.documentElement.classList.toggle('dark', variant === 'dark');
     DebouncedStorage.set(STORAGE_KEYS.THEME, { color, variant }, 300);
   }, [color, variant]);
 

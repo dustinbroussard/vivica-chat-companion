@@ -219,25 +219,42 @@ export const ChatBody = forwardRef<HTMLDivElement, ChatBodyProps>(
           </div>
         ) : (
           // Messages
-          <div className="space-y-6 max-w-4xl mx-auto">
+          <div className="space-y-4 sm:space-y-6 max-w-full sm:max-w-4xl mx-auto overflow-x-hidden">
             {conversation.messages.map((message, index) => (
               <div
                 key={message.id}
-                className={`flex ${
-                  message.role === 'user' ? 'justify-end' : 'justify-start'
-                } slide-up group`}
+                className={`flex flex-col ${
+                  message.role === 'user' ? 'items-end' : 'items-start'
+                } mb-2 slide-up group`}
               >
-                <div className="flex items-start gap-3 max-w-[85%] md:max-w-[70%]">
-                  {message.role === 'assistant' && (
-                    <span className="mt-1 flex items-center gap-1 text-xs font-semibold text-primary">
-                      <FaRobot className="w-3 h-3" />
-                      {getProfileName(message.profileId)}
-                    </span>
+                <div
+                  className={`flex items-center gap-2 mb-0.5 ${
+                    message.role === 'user' ? 'flex-row-reverse' : ''
+                  }`}
+                >
+                  {message.role === 'assistant' ? (
+                    <>
+                      <FaRobot className="w-4 h-4" />
+                      <span className="font-medium text-xs text-muted-foreground">
+                        {getProfileName(message.profileId)}
+                      </span>
+                    </>
+                  ) : (
+                    <>
+                      <FaUser className="w-4 h-4" />
+                      <span className="font-medium text-xs text-muted-foreground">
+                        {getUserName()}
+                      </span>
+                    </>
                   )}
+                </div>
+
                   
                   <div
                     className={`message-bubble ${message.role} ${
                       message.failed ? 'border-accent/50 bg-accent/10' : ''
+                    } px-3 py-2 rounded-2xl max-w-[95vw] sm:max-w-2xl break-words ${
+                      message.role === 'user' ? 'rounded-br-none' : 'rounded-bl-none'
                     }`}
                   >
                     <div className="prose dark:prose-invert break-words max-w-none">
@@ -341,13 +358,6 @@ export const ChatBody = forwardRef<HTMLDivElement, ChatBodyProps>(
                     </div>
                   </div>
                   
-                  {message.role === 'user' && (
-                    <span className="mt-1 flex items-center gap-1 text-xs font-semibold text-primary">
-                      <FaUser className="w-3 h-3" />
-                      {getUserName()}
-                    </span>
-                  )}
-                </div>
               </div>
             ))}
 

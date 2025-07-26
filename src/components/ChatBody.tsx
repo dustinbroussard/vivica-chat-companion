@@ -4,6 +4,7 @@ import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { RotateCcw, Copy, Pencil } from "lucide-react";
 import { CodeBlock } from "./CodeBlock";
+import { CodeBlockLoader } from "./CodeBlockLoader";
 import { Button } from "@/components/ui/button";
 import { FaUser, FaRobot } from "react-icons/fa";
 import { useTheme } from "@/hooks/useTheme";
@@ -45,6 +46,7 @@ interface Message {
   timestamp: Date;
   failed?: boolean;
   isCodeResponse?: boolean;
+  codeLoading?: boolean;
 }
 
 interface Conversation {
@@ -285,6 +287,7 @@ export const ChatBody = forwardRef<HTMLDivElement, ChatBodyProps>(
                               JSON.stringify(message.content))
                         }
                       </ReactMarkdown>
+                      {message.codeLoading && <CodeBlockLoader />}
                     </div>
                     
                     <div className="flex items-center justify-between mt-2">

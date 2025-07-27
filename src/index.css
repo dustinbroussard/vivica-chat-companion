@@ -612,7 +612,7 @@
 .message-bubble {
   max-width: 100%;
   padding: 10px 14px;
-  border-radius: 1.5rem;
+  border-radius: 2rem;
   margin: 4px 0;
   position: relative;
   word-wrap: break-word;
@@ -634,6 +634,22 @@
   background: hsl(var(--assistant-bubble-bg) / 0.95);
   color: var(--assistant-bubble-text);
   border-bottom-left-radius: 0.75rem;
+}
+
+html:not(.dark) .message-bubble {
+  border-color: #d1d5db;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.07);
+  color: #1f2937;
+}
+
+html:not(.dark) .message-bubble.user {
+  background: #ffffff;
+}
+
+html:not(.dark) .message-bubble.assistant {
+  background: #1f2937;
+  color: #f9fafb;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.07), inset 4px 0 0 rgba(59, 130, 246, 0.2);
 }
 
 .dark .message-bubble.user {
@@ -674,6 +690,13 @@
   padding-left: 0.5rem;
   padding-right: 0.5rem;
   border-radius: 1.25rem;
+}
+
+html:not(.dark) .code-bubble {
+  background: #f3f4f6;
+  border-color: #d1d5db;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.07);
+  color: #1f2937;
 }
 
 .dark .code-bubble {
@@ -733,6 +756,13 @@
   border: 1px solid hsl(var(--border-light) / 0.5);
   box-shadow: 0 1px 2px hsl(var(--shadow));
   width: 100%;
+}
+
+html:not(.dark) .code-block {
+  background: #f3f4f6;
+  border-color: #d1d5db;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.07);
+  color: #1f2937;
 }
 
 .dark .code-block {

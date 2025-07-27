@@ -748,7 +748,7 @@ html:not(.dark) .code-block {
   max-width: 90%;
   border-bottom-right-radius: 0.75rem;
   color: hsl(var(--bg-primary));
-  background: hsl(var(--accent-primary));
+  background: hsl(var(--text-primary));
 }
 
 

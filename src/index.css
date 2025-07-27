@@ -56,13 +56,6 @@
     --info: 180 100% 50%;
     --theme-primary: 0 0% 100%;
     --theme-accent: 0 0% 80%;
-    --user-bubble-bg: hsl(var(--primary-foreground));
-    --user-bubble-text: hsl(var(--primary));
-    --user-bubble-border: 1px solid hsl(var(--border-custom));
-    /* Reverse colors for the assistant bubble */
-    /* Assistant bubble always uses inverse of user colors */
-    --assistant-bubble-bg: var(--user-bubble-text);
-    --assistant-bubble-text: var(--user-bubble-bg);
     --assistant-bubble-border: 1px solid hsl(var(--border-custom));
     --gradient-primary: linear-gradient(135deg, hsl(var(--bg-primary)) 0%, hsl(var(--bg-hover)) 100%);
     --gradient-accent: linear-gradient(135deg, hsl(var(--theme-primary)) 0%, hsl(var(--theme-accent)) 100%);
@@ -620,45 +613,27 @@
   box-shadow: 0 1px 3px hsl(var(--shadow));
 }
 
-.message-bubble.user {
-  position: left;
-  max-width: 90%;
-  background: hsl(var(--user-bubble-bg) / 0.95);
-  color: var(--user-bubble-text);
-  border-bottom-right-radius: 0.75rem;
-}
 
 .message-bubble.assistant {
   position: right;
   max-width: 95%;
-  background: hsl(var(--assistant-bubble-bg) / 0.95);
-  color: var(--assistant-bubble-text);
   border-bottom-left-radius: 0.75rem;
 }
 
 html:not(.dark) .message-bubble {
   border-color: hsl(var(--border-light));
   box-shadow: 0 2px 8px hsl(var(--shadow));
-  color: hsl(var(--foreground));
-}
-
-html:not(.dark) .message-bubble.user {
-  background: hsl(var(--user-bubble-bg) / 0.95);
 }
 
 html:not(.dark) .message-bubble.assistant {
-  background: hsl(var(--assistant-bubble-bg) / 0.95);
-  color: hsl(var(--assistant-bubble-text));
   box-shadow: 0 2px 8px hsl(var(--shadow)), inset 4px 0 0 hsl(var(--accent-primary) / 0.2);
 }
 
-.dark .message-bubble.user {
-  background: hsl(var(--user-bubble-bg) / 0.25);
-  box-shadow: 0 1px 3px hsl(var(--shadow)), 0 0 6px hsla(140, 100%, 50%, 0.3);
+html:not(.dark) .message-bubble.user {
+  box-shadow: 0 2px 8px hsl(var(--shadow)), inset 4px 0 0 hsl(var(--accent-primary) / 0.2);
 }
 
 .dark .message-bubble.assistant {
-  background: hsl(var(--assistant-bubble-bg) / 0.25);
   box-shadow: 0 1px 3px hsl(var(--shadow)), 0 0 6px hsla(190, 100%, 70%, 0.3);
 }
 
@@ -766,4 +741,13 @@ html:not(.dark) .code-block {
   background: hsl(var(--bg-tertiary) / 0.4);
   color: hsl(var(--foreground));
 }
+
+.message-bubble.user {
+  position: left;
+  max-width: 90%;
+  border-bottom-right-radius: 0.75rem;
+  color: hsl(var(--bg-primary));
+  background: hsl(var(--accent-primary));
+}
+
 

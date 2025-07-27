@@ -637,19 +637,19 @@
 }
 
 html:not(.dark) .message-bubble {
-  border-color: #d1d5db;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.07);
-  color: #1f2937;
+  border-color: hsl(var(--border-light));
+  box-shadow: 0 2px 8px hsl(var(--shadow));
+  color: hsl(var(--foreground));
 }
 
 html:not(.dark) .message-bubble.user {
-  background: #ffffff;
+  background: hsl(var(--user-bubble-bg) / 0.95);
 }
 
 html:not(.dark) .message-bubble.assistant {
-  background: #1f2937;
-  color: #f9fafb;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.07), inset 4px 0 0 rgba(59, 130, 246, 0.2);
+  background: hsl(var(--assistant-bubble-bg) / 0.95);
+  color: hsl(var(--assistant-bubble-text));
+  box-shadow: 0 2px 8px hsl(var(--shadow)), inset 4px 0 0 hsl(var(--accent-primary) / 0.2);
 }
 
 .dark .message-bubble.user {
@@ -693,10 +693,7 @@ html:not(.dark) .message-bubble.assistant {
 }
 
 html:not(.dark) .code-bubble {
-  background: #f3f4f6;
-  border-color: #d1d5db;
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.07);
-  color: #1f2937;
+  color: hsl(var(--foreground));
 }
 
 .dark .code-bubble {
@@ -742,8 +739,8 @@ html:not(.dark) .code-bubble {
 }
 
 .code-block {
-  background: #f4f4f5;
-  color: #1a1a1a;
+  background: hsl(var(--bg-tertiary) / 0.6);
+  color: hsl(var(--foreground));
   font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas,
     "Liberation Mono", "Courier New", monospace;
   font-size: 0.6875rem;
@@ -759,10 +756,10 @@ html:not(.dark) .code-bubble {
 }
 
 html:not(.dark) .code-block {
-  background: #f3f4f6;
-  border-color: #d1d5db;
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.07);
-  color: #1f2937;
+  background: hsl(var(--bg-tertiary) / 0.8);
+  border-color: hsl(var(--border-light) / 0.5);
+  box-shadow: 0 1px 2px hsl(var(--shadow));
+  color: hsl(var(--foreground));
 }
 
 .dark .code-block {

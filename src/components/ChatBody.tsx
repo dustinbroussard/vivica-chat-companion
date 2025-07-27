@@ -268,7 +268,7 @@ export const ChatBody = forwardRef<HTMLDivElement, ChatBodyProps>(
                       index === conversation?.messages.length - 1 ? 'glow-once' : ''
                     }`}
                   >
-                    <div className="prose dark:prose-invert break-words max-w-none text-sm leading-snug">
+                    <div className="prose break-words max-w-none text-sm leading-snug">
                       <ReactMarkdown
                         remarkPlugins={[remarkGfm]}
                         components={{

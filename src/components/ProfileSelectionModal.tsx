@@ -44,7 +44,7 @@ export const ProfileSelectionModal = ({
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-[500px] bg-card border-border">
+      <DialogContent className="sm:max-w-[500px] bg-card border-border max-h-[80vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <User className="w-5 h-5" />
@@ -52,7 +52,7 @@ export const ProfileSelectionModal = ({
           </DialogTitle>
         </DialogHeader>
 
-        <div className="space-y-3 py-4">
+        <div className="space-y-3">
           {profiles.length === 0 ? (
             <div className="text-center py-8">
               <p className="text-muted-foreground mb-4">No profiles created yet</p>
@@ -98,7 +98,7 @@ export const ProfileSelectionModal = ({
                 </div>
               ))}
 
-              <div className="pt-4 border-t border-border">
+              <div className="pb-4 pt-4 border-t border-border">
                 <Button
                   variant="outline"
                   onClick={handleManageProfiles}

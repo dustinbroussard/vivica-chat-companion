@@ -185,14 +185,21 @@ export const SettingsModal = ({ isOpen, onClose }: SettingsModalProps) => {
             <div className="flex gap-2">
               <Button
                 variant="outline"
-                onClick={() => {
-                  const data = JSON.stringify(Storage.exportAllData(), null, 2);
-                  const blob = new Blob([data], { type: 'application/json' });
-                  const url = URL.createObjectURL(blob);
-                  const a = document.createElement('a');
-                  a.href = url;
-                  a.download = `vivica-backup-${new Date().toISOString().split('T')[0]}.json`;
-                  a.click();
+                onClick={async () => {
+                  try {
+                    const data = await Storage.exportAllData();
+                    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = `vivica-backup-${new Date().toISOString().split('T')[0]}.json`;
+                    a.click();
+                    URL.revokeObjectURL(url);
+                    toast.success('Backup created successfully!');
+                  } catch (err) {
+                    console.error('Backup failed:', err);
+                    toast.error('Failed to create backup');
+                  }
                 }}
               >
                 Backup Everything

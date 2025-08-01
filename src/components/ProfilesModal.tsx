@@ -165,14 +165,22 @@ export const ProfilesModal = ({ isOpen, onClose }: ProfilesModalProps) => {
               </Button>
               <Button 
                 variant="outline"
-                onClick={() => {
-                  const data = JSON.stringify(Storage.exportProfiles(), null, 2);
-                  const blob = new Blob([data], { type: 'application/json' });
-                  const url = URL.createObjectURL(blob);
-                  const a = document.createElement('a');
-                  a.href = url;
-                  a.download = `vivica-profiles-${new Date().toISOString().split('T')[0]}.json`;
-                  a.click();
+                onClick={async () => {
+                  try {
+                    const profiles = await Storage.exportProfiles();
+                    const data = JSON.stringify(profiles, null, 2);
+                    const blob = new Blob([data], { type: 'application/json' });
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = `vivica-profiles-${new Date().toISOString().split('T')[0]}.json`;
+                    a.click();
+                    URL.revokeObjectURL(url);
+                    toast.success('Profiles exported successfully!');
+                  } catch (err) {
+                    console.error('Export failed:', err);
+                    toast.error('Failed to export profiles');
+                  }
                 }}
               >
                 Export

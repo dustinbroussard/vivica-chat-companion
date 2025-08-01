@@ -187,7 +187,17 @@ export const SettingsModal = ({ isOpen, onClose }: SettingsModalProps) => {
                 variant="outline"
                 onClick={async () => {
                   try {
-                    const data = await Storage.exportAllData();
+                    const data: Record<string, unknown> = {};
+                    Object.values(STORAGE_KEYS).forEach(key => {
+                      const value = localStorage.getItem(key);
+                      if (value) {
+                        try {
+                          data[key] = JSON.parse(value);
+                        } catch {
+                          data[key] = value;
+                        }
+                      }
+                    });
                     const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
                     const url = URL.createObjectURL(blob);
                     const a = document.createElement('a');
@@ -220,7 +230,11 @@ export const SettingsModal = ({ isOpen, onClose }: SettingsModalProps) => {
                         const contents = event.target?.result as string;
                         const data = JSON.parse(contents);
                         if (typeof data === 'object' && data !== null) {
-                          Storage.importAllData(data);
+                          Object.entries(data).forEach(([key, value]) => {
+                            if (Object.values(STORAGE_KEYS).includes(key as any)) {
+                              localStorage.setItem(key, JSON.stringify(value));
+                            }
+                          });
                           toast.success('Backup restored successfully!');
                           setTimeout(() => window.location.reload(), 1000);
                         }

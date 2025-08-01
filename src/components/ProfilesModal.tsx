@@ -167,7 +167,7 @@ export const ProfilesModal = ({ isOpen, onClose }: ProfilesModalProps) => {
                 variant="outline"
                 onClick={async () => {
                   try {
-                    const profiles = await Storage.exportProfiles();
+                    const profiles = JSON.parse(localStorage.getItem(STORAGE_KEYS.PROFILES) || '[]');
                     const data = JSON.stringify(profiles, null, 2);
                     const blob = new Blob([data], { type: 'application/json' });
                     const url = URL.createObjectURL(blob);
@@ -201,7 +201,7 @@ export const ProfilesModal = ({ isOpen, onClose }: ProfilesModalProps) => {
                         const contents = event.target?.result as string;
                         const profiles = JSON.parse(contents);
                         if (Array.isArray(profiles)) {
-                          Storage.importProfiles(profiles);
+                          localStorage.setItem(STORAGE_KEYS.PROFILES, JSON.stringify(profiles));
                           toast.success('Profiles imported successfully!');
                         }
                       } catch (err) {

@@ -155,13 +155,59 @@ export const ProfilesModal = ({ isOpen, onClose }: ProfilesModalProps) => {
         {!showForm ? (
           // Profile List
           <div className="space-y-4 py-4">
-            <Button
-              onClick={handleCreateProfile}
-              className="w-full bg-accent text-accent-foreground hover:bg-accent/90"
-            >
-              <Plus className="w-4 h-4 mr-2" />
-              Create New Profile
-            </Button>
+            <div className="flex gap-2 w-full">
+              <Button
+                onClick={handleCreateProfile}
+                className="flex-1 bg-accent text-accent-foreground hover:bg-accent/90"
+              >
+                <Plus className="w-4 h-4 mr-2" />
+                Create New Profile
+              </Button>
+              <Button 
+                variant="outline"
+                onClick={() => {
+                  const data = JSON.stringify(Storage.exportProfiles(), null, 2);
+                  const blob = new Blob([data], { type: 'application/json' });
+                  const url = URL.createObjectURL(blob);
+                  const a = document.createElement('a');
+                  a.href = url;
+                  a.download = `vivica-profiles-${new Date().toISOString().split('T')[0]}.json`;
+                  a.click();
+                }}
+              >
+                Export
+              </Button>
+              <Button
+                variant="outline"
+                onClick={() => {
+                  const input = document.createElement('input');
+                  input.type = 'file';
+                  input.accept = '.json';
+                  input.onchange = (e) => {
+                    const file = (e.target as HTMLInputElement).files?.[0];
+                    if (!file) return;
+                    
+                    const reader = new FileReader();
+                    reader.onload = (event) => {
+                      try {
+                        const contents = event.target?.result as string;
+                        const profiles = JSON.parse(contents);
+                        if (Array.isArray(profiles)) {
+                          Storage.importProfiles(profiles);
+                          toast.success('Profiles imported successfully!');
+                        }
+                      } catch (err) {
+                        toast.error('Invalid profiles file');
+                      }
+                    };
+                    reader.readAsText(file);
+                  };
+                  input.click();
+                }}
+              >
+                Import
+              </Button>
+            </div>
 
             <div className="space-y-3">
               {profiles.map((profile) => (

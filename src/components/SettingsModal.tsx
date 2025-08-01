@@ -177,6 +177,60 @@ export const SettingsModal = ({ isOpen, onClose }: SettingsModalProps) => {
           {/* Theme Section */}
           <ThemeSelector />
 
+          {/* Backup/Restore */}
+          <div className="space-y-4 border-t border-border pt-4">
+            <div className="flex items-center gap-2">
+              <Label className="text-base font-semibold">Backup & Restore</Label>
+            </div>
+            <div className="flex gap-2">
+              <Button
+                variant="outline"
+                onClick={() => {
+                  const data = JSON.stringify(Storage.exportAllData(), null, 2);
+                  const blob = new Blob([data], { type: 'application/json' });
+                  const url = URL.createObjectURL(blob);
+                  const a = document.createElement('a');
+                  a.href = url;
+                  a.download = `vivica-backup-${new Date().toISOString().split('T')[0]}.json`;
+                  a.click();
+                }}
+              >
+                Backup Everything
+              </Button>
+              <Button
+                variant="outline"
+                onClick={() => {
+                  const input = document.createElement('input');
+                  input.type = 'file';
+                  input.accept = '.json';
+                  input.onchange = (e) => {
+                    const file = (e.target as HTMLInputElement).files?.[0];
+                    if (!file) return;
+                    
+                    const reader = new FileReader();
+                    reader.onload = (event) => {
+                      try {
+                        const contents = event.target?.result as string;
+                        const data = JSON.parse(contents);
+                        if (typeof data === 'object' && data !== null) {
+                          Storage.importAllData(data);
+                          toast.success('Backup restored successfully!');
+                          setTimeout(() => window.location.reload(), 1000);
+                        }
+                      } catch (err) {
+                        toast.error('Invalid backup file');
+                      }
+                    };
+                    reader.readAsText(file);
+                  };
+                  input.click();
+                }}
+              >
+                Restore Backup
+              </Button>
+            </div>
+          </div>
+
           {/* Danger Zone */}
           <div className="space-y-4 border-t border-border pt-4">
             <div className="flex items-center gap-2 text-destructive">

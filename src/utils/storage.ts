@@ -161,8 +161,42 @@ export const STORAGE_KEYS = {
   SELECTED_MODEL: 'vivica-selected-model',
   CONVERSATIONS: 'vivica-conversations',
   PROFILES: 'vivica-profiles',
-  CURRENT_PROFILE: 'vivica-current-profile',
+  CURRENT_PROFILE: 'vivica-current-profile', 
   SETTINGS: 'vivica-settings',
   INSTALL_PROMPT_DISMISSED: 'vivica-install-dismissed',
-  LAST_INSTALL_PROMPT: 'vivica-last-install-prompt'
+  LAST_INSTALL_PROMPT: 'vivica-last-install-prompt',
+  MEMORIES: 'vivica-memories'
 } as const;
+
+export function exportAllData(): Record<string, unknown> {
+  const data: Record<string, unknown> = {};
+  Object.values(STORAGE_KEYS).forEach(key => {
+    const value = localStorage.getItem(key);
+    if (value) {
+      try {
+        data[key] = JSON.parse(value);
+      } catch {
+        data[key] = value;
+      }
+    }
+  });
+  return data;
+}
+
+export function importAllData(data: Record<string, unknown>): void {
+  Object.entries(data).forEach(([key, value]) => {
+    if (Object.values(STORAGE_KEYS).includes(key as any)) {
+      Storage.set(key, value);
+    }
+  });
+  window.dispatchEvent(new Event('storageChanged'));
+}
+
+export function exportProfiles(): Profile[] {
+  return Storage.get<Profile[]>(STORAGE_KEYS.PROFILES, []);
+}
+
+export function importProfiles(profiles: Profile[]): void {
+  Storage.set(STORAGE_KEYS.PROFILES, profiles);
+  window.dispatchEvent(new Event('profilesUpdated'));
+}

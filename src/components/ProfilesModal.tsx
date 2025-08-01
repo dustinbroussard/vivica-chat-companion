@@ -14,7 +14,8 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { ModelSelector } from "@/components/ModelSelector";
 import { toast } from "sonner";
-import { Storage, STORAGE_KEYS } from "@/utils/storage";
+import { Storage } from "@/utils/storage";
+import { STORAGE_KEYS } from "@/utils/storage";
 
 interface Profile {
   id: string;

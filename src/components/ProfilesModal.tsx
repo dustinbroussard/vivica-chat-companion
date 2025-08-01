@@ -204,6 +204,8 @@ export const ProfilesModal = ({ isOpen, onClose }: ProfilesModalProps) => {
                         if (Array.isArray(profiles)) {
                           localStorage.setItem(STORAGE_KEYS.PROFILES, JSON.stringify(profiles));
                           toast.success('Profiles imported successfully!');
+                          // Refresh the profile list by re-triggering the useEffect
+                          setProfiles(JSON.parse(localStorage.getItem(STORAGE_KEYS.PROFILES) || '[]'));
                         }
                       } catch (err) {
                         toast.error('Invalid profiles file');

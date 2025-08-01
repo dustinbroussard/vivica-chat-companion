@@ -14,7 +14,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { ModelSelector } from "@/components/ModelSelector";
 import { toast } from "sonner";
-import { Storage } from "@/utils/storage";
+import { Storage, STORAGE_KEYS } from "@/utils/storage";
 
 interface Profile {
   id: string;
@@ -33,7 +33,15 @@ interface ProfilesModalProps {
 }
 
 export const ProfilesModal = ({ isOpen, onClose }: ProfilesModalProps) => {
-  const [profiles, setProfiles] = useState<Profile[]>([]);
+  const [profiles, setProfiles] = useState<Profile[]>(JSON.parse(localStorage.getItem(STORAGE_KEYS.PROFILES) || '[]'));
+
+  useEffect(() => {
+    const handleProfileUpdate = () => {
+      setProfiles(JSON.parse(localStorage.getItem(STORAGE_KEYS.PROFILES) || '[]'));
+    };
+    window.addEventListener('profilesUpdated', handleProfileUpdate);
+    return () => window.removeEventListener('profilesUpdated', handleProfileUpdate);
+  }, []);
 
   const [editingProfile, setEditingProfile] = useState<Profile | null>(null);
   const [showForm, setShowForm] = useState(false);

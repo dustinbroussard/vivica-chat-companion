@@ -69,6 +69,7 @@ interface ProfileBrief {
 
 interface ChatBodyProps {
   conversation: Conversation | null;
+  currentProfile?: { id: string } | null;
   isTyping: boolean;
   onRetryMessage?: (messageId: string) => void;
   onRegenerateMessage?: (messageId: string) => void;
@@ -78,7 +79,7 @@ interface ChatBodyProps {
 }
 
 export const ChatBody = forwardRef<HTMLDivElement, ChatBodyProps>(
-  ({ conversation, isTyping, onRetryMessage, onRegenerateMessage, onEditMessage, onSendMessage, onNewChat }, ref) => {
+  ({ conversation, currentProfile, isTyping, onRetryMessage, onRegenerateMessage, onEditMessage, onSendMessage, onNewChat }, ref) => {
     const messagesEndRef = useRef<HTMLDivElement>(null);
     const { color, variant } = useTheme();
     const logoSrc = `/logo-${color}${variant}.png`;

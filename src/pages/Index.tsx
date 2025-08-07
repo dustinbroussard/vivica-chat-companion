@@ -998,6 +998,7 @@ const Index = () => {
         <ChatBody
           ref={chatBodyRef}
           conversation={currentConversation}
+          currentProfile={currentProfile}
           isTyping={isTyping}
           onRetryMessage={handleRetryMessage}
           onRegenerateMessage={handleRegenerateMessage}

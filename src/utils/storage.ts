@@ -168,7 +168,7 @@ export const STORAGE_KEYS = {
   MEMORIES: 'vivica-memories'
 } as const;
 
-export function exportAllData(): Record<string, unknown> {
+export async function exportAllData(): Promise<Record<string, unknown>> {
   const data: Record<string, unknown> = {};
   Object.values(STORAGE_KEYS).forEach(key => {
     const value = localStorage.getItem(key);
@@ -180,23 +180,80 @@ export function exportAllData(): Record<string, unknown> {
       }
     }
   });
+
+  // Include conversation summaries from IndexedDB
+  try {
+    const memories = await getAllMemoriesFromDb();
+    if (memories.length) {
+      data['_conversationMemories'] = memories;
+    }
+  } catch (e) {
+    console.warn('Failed to load conversation memories for export', e);
+  }
+
   return data;
 }
 
-export function importAllData(data: Record<string, unknown>): void {
+export async function importAllData(data: Record<string, unknown>): Promise<void> {
   Object.entries(data).forEach(([key, value]) => {
     if (Object.values(STORAGE_KEYS).includes(key as any)) {
       Storage.set(key, value);
     }
   });
+
+  // Import conversation summaries if present
+  if (data['_conversationMemories']) {
+    try {
+      const memories = data['_conversationMemories'] as MemoryEntry[];
+      const db = await getDb();
+      const tx = db.transaction('memories', 'readwrite');
+      for (const memory of memories) {
+        await tx.store.put(memory);
+      }
+      await tx.done;
+    } catch (e) {
+      console.warn('Failed to import conversation memories', e);
+    }
+  }
+
   window.dispatchEvent(new Event('storageChanged'));
 }
 
-export function exportProfiles(): Profile[] {
-  return Storage.get<Profile[]>(STORAGE_KEYS.PROFILES, []);
+export async function exportProfiles(): Promise<{
+  profiles: Profile[],
+  conversationMemories?: MemoryEntry[]
+}> {
+  const profiles = Storage.get<Profile[]>(STORAGE_KEYS.PROFILES, []);
+  try {
+    const memories = await getAllMemoriesFromDb();
+    return {
+      profiles,
+      conversationMemories: memories.filter(m => m.scope === 'profile')
+    };
+  } catch (e) {
+    console.warn('Failed to load conversation memories for profile export', e);
+    return { profiles };
+  }
 }
 
-export function importProfiles(profiles: Profile[]): void {
-  Storage.set(STORAGE_KEYS.PROFILES, profiles);
+export async function importProfiles(data: {
+  profiles: Profile[],
+  conversationMemories?: MemoryEntry[]
+}): Promise<void> {
+  Storage.set(STORAGE_KEYS.PROFILES, data.profiles);
+  
+  if (data.conversationMemories?.length) {
+    try {
+      const db = await getDb();
+      const tx = db.transaction('memories', 'readwrite');
+      for (const memory of data.conversationMemories) {
+        await tx.store.put(memory);
+      }
+      await tx.done;
+    } catch (e) {
+      console.warn('Failed to import conversation memories with profiles', e);
+    }
+  }
+
   window.dispatchEvent(new Event('profilesUpdated'));
 }

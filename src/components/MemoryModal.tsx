@@ -15,6 +15,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Separator } from "@/components/ui/separator";
 import { toast } from "sonner";
 import { getMemories, deleteMemory, editMemory, clearAllMemories } from "@/utils/memoryUtils";
+import { saveMemoryToDb } from "@/utils/indexedDb";
 
 interface MemoryData {
   scope: 'global' | 'profile';
@@ -38,6 +39,8 @@ interface MemoryData {
 interface MemoryItem {
   id: string;
   content: string;
+  scope: 'global' | 'profile';
+  profileId?: string;
   createdAt: string;
   tags: string[];
 }
@@ -154,8 +157,10 @@ export const MemoryModal = ({
     }
   };
 
-  const handleExport = () => {
-    const dataStr = JSON.stringify(memory, null, 2);
+  const handleExport = async () => {
+    const memoryEntries = await getMemories(currentProfileId, 'all');
+    const exportData = { memory, memories: memoryEntries };
+    const dataStr = JSON.stringify(exportData, null, 2);
     const dataBlob = new Blob([dataStr], { type: 'application/json' });
     const url = URL.createObjectURL(dataBlob);
     const link = document.createElement('a');
@@ -170,10 +175,20 @@ export const MemoryModal = ({
     const file = event.target.files?.[0];
     if (file) {
       const reader = new FileReader();
-      reader.onload = (e) => {
+      reader.onload = async (e) => {
         try {
           const importedData = JSON.parse(e.target?.result as string);
-          setMemory(importedData);
+          if (importedData.memory) {
+            setMemory(importedData.memory);
+          } else {
+            setMemory(importedData);
+          }
+          if (Array.isArray(importedData.memories)) {
+            for (const entry of importedData.memories) {
+              await saveMemoryToDb(entry);
+            }
+            setMemories(importedData.memories);
+          }
           toast.success("Memory imported successfully");
         } catch (error) {
           toast.error("Invalid file format");

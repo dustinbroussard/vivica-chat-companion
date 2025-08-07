@@ -308,7 +308,7 @@ export const ChatBody = forwardRef<HTMLDivElement, ChatBodyProps>(
                       {message.codeLoading && <CodeBlockLoader />}
                     </div>
                     
-                    <div className="flex items-center justify-between mt-2">
+                    <div className="flex items-center justify-between mt-2 gap-2">
                       <div className={`flex items-center gap-2 text-xs opacity-60 ${
                         message.role === 'user' ? 'text-right' : 'text-left'
                       }`}>
@@ -316,7 +316,15 @@ export const ChatBody = forwardRef<HTMLDivElement, ChatBodyProps>(
                           <span className="inline-block w-2 h-2 rounded-full bg-blue-500/70" 
                                 title="Code response" />
                         )}
+                        {message.failed && (
+                          <span className="text-red-500/80" title="Failed message">⚠️</span>
+                        )}
                         {formatTimestamp(message.timestamp)}
+                        {message.profileId !== currentProfile?.id && (
+                          <span className="px-1 py-0.5 rounded text-xxs bg-muted/50">
+                            {getProfileName(message.profileId)}
+                          </span>
+                        )}
                       </div>
                       
                       <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">

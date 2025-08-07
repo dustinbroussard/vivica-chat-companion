@@ -206,14 +206,21 @@ const Index = () => {
       let profiles: Profile[] = [];
       try {
         profiles = JSON.parse(savedProfiles);
+        // Validate profile schema
+        profiles = profiles.filter(p => 
+          p.id && p.name && p.model && 
+          typeof p.temperature === 'number' &&
+          typeof p.maxTokens === 'number'
+        );
       } catch {
         profiles = [];
       }
 
       if (!profiles.some(p => p.isVivica)) {
-        // Ensure Vivica always exists
-        profiles.unshift(Storage.createVivicaProfile());
+        const vivicaProfile = Storage.createVivicaProfile();
+        profiles.unshift(vivicaProfile);
         localStorage.setItem('vivica-profiles', JSON.stringify(profiles));
+        console.log('Restored default Vivica profile');
       }
       if (savedProfileId) {
         const profile = profiles.find(p => p.id === savedProfileId);
@@ -299,15 +306,26 @@ const Index = () => {
   };
 
   const getMemoryPrompt = async () => {
-    const memoryActive = localStorage.getItem('vivica-memory-active');
-    if (memoryActive !== 'true') return '';
+    const memoryActive = Storage.get('vivica-memory-active', false);
+    if (!memoryActive) return '';
 
-    const profileId = localStorage.getItem('vivica-current-profile') || '';
+    const profileId = Storage.get('vivica-current-profile', '');
+    const memoryKeyPrefix = 'vivica-memory';
     const parts: Record<string, unknown>[] = [];
 
-    const globalMem = localStorage.getItem('vivica-memory-global');
-    const profileMem = profileId
-      ? localStorage.getItem(`vivica-memory-profile-${profileId}`)
+    // Safely get memory from storage with validation
+    const getValidatedMemory = (key: string) => {
+      try {
+        const memory = Storage.get(key, null);
+        return typeof memory === 'object' ? memory : null;
+      } catch {
+        return null;
+      }
+    };
+
+    const globalMem = getValidatedMemory(`${memoryKeyPrefix}-global`);
+    const profileMem = profileId 
+      ? getValidatedMemory(`${memoryKeyPrefix}-profile-${profileId}`) 
       : null;
 
     if (globalMem) {

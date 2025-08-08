@@ -1,6 +1,6 @@
 
 import { useState, useEffect } from "react";
-import { X, User, Plus, Edit, Trash2 } from "lucide-react";
+import { X, User, Plus, Edit, Trash2, Palette, Sun, Moon } from "lucide-react";
 import { STORAGE_KEYS } from "@/utils/storage";
 import {
   Dialog,
@@ -15,6 +15,15 @@ import { Textarea } from "@/components/ui/textarea";
 import { ModelSelector } from "@/components/ModelSelector";
 import { toast } from "sonner";
 import { Storage } from "@/utils/storage";
+import { Checkbox } from "@/components/ui/checkbox";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import type { ThemeColor, ThemeVariant } from "@/hooks/useTheme";
 
 interface Profile {
   id: string;
@@ -25,6 +34,9 @@ interface Profile {
   temperature: number;
   maxTokens: number;
   isVivica?: boolean;
+   useProfileTheme?: boolean;
+   themeColor?: ThemeColor;
+   themeVariant?: ThemeVariant;
 }
 
 interface ProfilesModalProps {
@@ -45,6 +57,14 @@ export const ProfilesModal = ({ isOpen, onClose }: ProfilesModalProps) => {
 
   const [editingProfile, setEditingProfile] = useState<Profile | null>(null);
   const [showForm, setShowForm] = useState(false);
+
+  const themeOptions = [
+    { value: 'default', label: 'Default', color: '#000000' },
+    { value: 'blue', label: 'Blue', color: '#3b82f6' },
+    { value: 'red', label: 'Red', color: '#ef4444' },
+    { value: 'green', label: 'Green', color: '#10b981' },
+    { value: 'purple', label: 'Purple', color: '#8b5cf6' },
+  ];
 
   useEffect(() => {
     const saved = localStorage.getItem('vivica-profiles');
@@ -74,6 +94,9 @@ export const ProfilesModal = ({ isOpen, onClose }: ProfilesModalProps) => {
             'You are a creative writing assistant specializing in storytelling and creative content.',
           temperature: 0.9,
           maxTokens: 3000,
+          useProfileTheme: false,
+          themeColor: 'default',
+          themeVariant: 'dark',
         },
       ];
     }
@@ -91,6 +114,9 @@ export const ProfilesModal = ({ isOpen, onClose }: ProfilesModalProps) => {
       systemPrompt: '',
       temperature: 0.7,
       maxTokens: 2000,
+      useProfileTheme: false,
+      themeColor: 'default',
+      themeVariant: 'dark',
     };
     setEditingProfile(newProfile);
     setShowForm(true);
@@ -354,6 +380,99 @@ export const ProfilesModal = ({ isOpen, onClose }: ProfilesModalProps) => {
                   }
                 />
               </div>
+            </div>
+
+            {/* Theme Section */}
+            <div className="space-y-4 border-t border-border pt-4">
+              <div className="flex items-center space-x-2">
+                <Checkbox
+                  id="useProfileTheme"
+                  checked={editingProfile?.useProfileTheme || false}
+                  onCheckedChange={(checked) =>
+                    setEditingProfile(prev =>
+                      prev
+                        ? {
+                            ...prev,
+                            useProfileTheme: checked as boolean,
+                            ...(checked
+                              ? {
+                                  themeColor: prev.themeColor || 'default',
+                                  themeVariant: prev.themeVariant || 'dark',
+                                }
+                              : {}),
+                          }
+                        : null
+                    )
+                  }
+                />
+                <Label htmlFor="useProfileTheme">Use profile-specific theme</Label>
+              </div>
+
+              {editingProfile?.useProfileTheme && (
+                <div className="space-y-4 pl-6">
+                  <div className="flex items-center gap-2">
+                    <Palette className="w-4 h-4" />
+                    <Label className="text-base font-semibold">Theme</Label>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label className="text-sm">Color Scheme</Label>
+                    <Select
+                      value={editingProfile.themeColor || 'default'}
+                      onValueChange={(value) =>
+                        setEditingProfile(prev => prev ? { ...prev, themeColor: value as ThemeColor } : null)
+                      }
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Choose color scheme" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {themeOptions.map((option) => (
+                          <SelectItem key={option.value} value={option.value}>
+                            <div className="flex items-center gap-2">
+                              <div
+                                className="w-4 h-4 rounded-full border"
+                                style={{ backgroundColor: option.color }}
+                              />
+                              {option.label}
+                            </div>
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label className="text-sm">Mode</Label>
+                    <div className="flex gap-2">
+                      <Button
+                        type="button"
+                        variant={editingProfile.themeVariant === 'dark' ? 'default' : 'outline'}
+                        size="sm"
+                        onClick={() =>
+                          setEditingProfile(prev => prev ? { ...prev, themeVariant: 'dark' } : null)
+                        }
+                        className="flex-1"
+                      >
+                        <Moon className="w-4 h-4 mr-2" />
+                        Dark
+                      </Button>
+                      <Button
+                        type="button"
+                        variant={editingProfile.themeVariant === 'light' ? 'default' : 'outline'}
+                        size="sm"
+                        onClick={() =>
+                          setEditingProfile(prev => prev ? { ...prev, themeVariant: 'light' } : null)
+                        }
+                        className="flex-1"
+                      >
+                        <Sun className="w-4 h-4 mr-2" />
+                        Light
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
 
             <div className="flex gap-3 pt-4">

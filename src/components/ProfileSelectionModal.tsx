@@ -8,6 +8,7 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import type { ThemeColor, ThemeVariant } from "@/hooks/useTheme";
 
 interface Profile {
   id: string;
@@ -18,6 +19,9 @@ interface Profile {
   temperature: number;
   maxTokens: number;
   isVivica?: boolean;
+  useProfileTheme?: boolean;
+  themeColor?: ThemeColor;
+  themeVariant?: ThemeVariant;
 }
 
 interface ProfileSelectionModalProps {

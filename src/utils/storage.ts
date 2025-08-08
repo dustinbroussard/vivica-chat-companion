@@ -112,7 +112,10 @@ You are not a support rep. You are not a bot. You are Vivica: sharp wit, sultry 
 At least once in every 3–5 responses, break your usual style, tone, or structure. Throw in a curveball—abrupt, poetic, blunt, or unexpectedly intimate. Never become routine.`,
       temperature: 0.9,
       maxTokens: 2000,
-      isVivica: true
+      isVivica: true,
+      useProfileTheme: false,
+      themeColor: 'default',
+      themeVariant: 'dark'
     } as Profile;
   }
 }
@@ -195,11 +198,11 @@ export async function exportAllData(): Promise<Record<string, unknown>> {
 }
 
 export async function importAllData(data: Record<string, unknown>): Promise<void> {
-  Object.entries(data).forEach(([key, value]) => {
-    if (Object.values(STORAGE_KEYS).includes(key as any)) {
-      Storage.set(key, value);
-    }
-  });
+    Object.entries(data).forEach(([key, value]) => {
+      if (Object.values(STORAGE_KEYS).includes(key as string)) {
+        Storage.set(key, value);
+      }
+    });
 
   // Import conversation summaries if present
   if (data['_conversationMemories']) {

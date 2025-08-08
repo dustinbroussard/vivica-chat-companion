@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { ProfileSwitcher } from "./ProfileSwitcher";
 import { useTheme } from "@/hooks/useTheme";
+import type { ThemeColor, ThemeVariant } from "@/hooks/useTheme";
 
 interface Profile {
   id: string;
@@ -15,6 +16,9 @@ interface Profile {
   temperature: number;
   maxTokens: number;
   isVivica?: boolean;
+  useProfileTheme?: boolean;
+  themeColor?: ThemeColor;
+  themeVariant?: ThemeVariant;
 }
 
 interface ChatHeaderProps {

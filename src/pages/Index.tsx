@@ -10,7 +10,7 @@ import { MemoryModal } from "@/components/MemoryModal";
 import { toast } from "sonner";
 import { ChatService, ChatMessage } from "@/services/chatService";
 import { searchBrave, BRAVE_SEARCH_TOOL, formatBraveResults } from "@/services/searchService";
-import { Storage } from "@/utils/storage";
+import { Storage, STORAGE_KEYS } from "@/utils/storage";
 import { fetchRSSHeadlines } from "@/services/rssService";
 import { getMemories, saveConversationMemory } from "@/utils/memoryUtils";
 import {
@@ -19,6 +19,7 @@ import {
   deleteConversationFromDb,
   ConversationEntry,
 } from "@/utils/indexedDb";
+import { useTheme, ThemeColor, ThemeVariant } from "@/hooks/useTheme";
 
 function weatherCodeToText(code: number): string {
   const map: Record<number, string> = {
@@ -84,6 +85,9 @@ interface Profile {
   temperature: number;
   maxTokens: number;
   isVivica?: boolean;
+  useProfileTheme?: boolean;
+  themeColor?: ThemeColor;
+  themeVariant?: ThemeVariant;
   [key: string]: unknown; // Add index signature for console.log compatibility
 }
 
@@ -101,6 +105,7 @@ const Index = () => {
   const [editingMessage, setEditingMessage] = useState<Message | null>(null);
   const chatBodyRef = useRef<HTMLDivElement>(null);
   const [showScrollButton, setShowScrollButton] = useState(false);
+  const { setColor, setVariant } = useTheme();
 
   const parseStreamingContent = (text: string) => {
     const regex = /```/g;
@@ -120,6 +125,17 @@ const Index = () => {
       return { display: text.slice(0, openIndex), loading: true } as const;
     }
     return { display: text, loading: false } as const;
+  };
+
+  const applyProfileTheme = (profile: Profile) => {
+    if (profile.useProfileTheme && profile.themeColor && profile.themeVariant) {
+      setColor(profile.themeColor);
+      setVariant(profile.themeVariant);
+    } else {
+      const globalTheme = Storage.get(STORAGE_KEYS.THEME, { color: 'default', variant: 'dark' });
+      setColor(globalTheme.color as ThemeColor);
+      setVariant(globalTheme.variant as ThemeVariant);
+    }
   };
 
   // Initialize default profiles and load data
@@ -191,6 +207,9 @@ const Index = () => {
             'You are a creative writing assistant specializing in storytelling and creative content.',
           temperature: 0.9,
           maxTokens: 3000,
+          useProfileTheme: false,
+          themeColor: 'default',
+          themeVariant: 'dark',
         },
       ];
     }
@@ -226,12 +245,14 @@ const Index = () => {
         const profile = profiles.find(p => p.id === savedProfileId);
         if (profile) {
           setCurrentProfile(profile);
+          applyProfileTheme(profile);
           return;
         }
       }
       // Fallback to first profile
       if (profiles.length > 0) {
         setCurrentProfile(profiles[0]);
+        applyProfileTheme(profiles[0]);
         localStorage.setItem('vivica-current-profile', profiles[0].id);
       }
     }
@@ -302,6 +323,7 @@ const Index = () => {
   const handleProfileChange = (profile: Profile) => {
     setCurrentProfile(profile);
     localStorage.setItem('vivica-current-profile', profile.id);
+    applyProfileTheme(profile);
     toast.success(`Switched to ${profile.name} profile`);
   };
 

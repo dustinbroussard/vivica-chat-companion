@@ -4,6 +4,7 @@ import { User } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { ProfileSelectionModal } from "./ProfileSelectionModal";
 import { Storage } from "@/utils/storage";
+import type { ThemeColor, ThemeVariant } from "@/hooks/useTheme";
 
 interface Profile {
   id: string;
@@ -14,6 +15,9 @@ interface Profile {
   temperature: number;
   maxTokens: number;
   isVivica?: boolean;
+  useProfileTheme?: boolean;
+  themeColor?: ThemeColor;
+  themeVariant?: ThemeVariant;
 }
 
 interface ProfileSwitcherProps {

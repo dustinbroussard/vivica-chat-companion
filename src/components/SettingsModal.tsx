@@ -232,7 +232,7 @@ export const SettingsModal = ({ isOpen, onClose }: SettingsModalProps) => {
                         const data = JSON.parse(contents);
                         if (typeof data === 'object' && data !== null) {
                           Object.entries(data).forEach(([key, value]) => {
-                            if (Object.values(STORAGE_KEYS).includes(key as any)) {
+                            if (Object.values(STORAGE_KEYS).includes(key as string)) {
                               localStorage.setItem(key, JSON.stringify(value));
                             }
                           });

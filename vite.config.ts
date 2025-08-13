@@ -18,7 +18,7 @@ export default defineConfig(({ mode }) => ({
   },
   plugins: [
     react(),
-    mode === 'development' &&    VitePWA({
+    VitePWA({
       registerType: 'autoUpdate',
       includeAssets: ['robots.txt', 'icons/*', 'uploads/*'],
       manifest,
@@ -26,7 +26,7 @@ export default defineConfig(({ mode }) => ({
         navigateFallback: 'offline.html'
       }
     }),
-  ].filter(Boolean),
+  ],
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "./src"),

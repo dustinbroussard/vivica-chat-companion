@@ -2,6 +2,10 @@ import { ChatService, ChatMessage } from '@/services/chatService';
 import { STORAGE_KEYS } from '@/utils/storage';
 
 export type ThemePalette = Record<string, string>;
+export type DualThemePalette = {
+  light: ThemePalette;
+  dark: ThemePalette;
+};
 
 const basePalettes: Record<string, Record<string, [number, number, number]>> = {
   serene: {
@@ -53,7 +57,7 @@ interface Profile {
   codeModel?: string;
 }
 
-export async function generateThemePalette(mood: string): Promise<ThemePalette> {
+export async function generateThemePalette(mood: string): Promise<DualThemePalette> {
   try {
     const profileId = localStorage.getItem(STORAGE_KEYS.CURRENT_PROFILE) || '';
     const rawProfiles = localStorage.getItem(STORAGE_KEYS.PROFILES) || '[]';
@@ -69,7 +73,7 @@ export async function generateThemePalette(mood: string): Promise<ThemePalette> 
       {
         role: 'system',
         content:
-          'You generate JSON containing CSS HSL color variables for a web theme. Respond with JSON having keys "--background", "--foreground", "--primary", and "--accent" with values in the form "H S% L%".',
+          'You generate JSON containing CSS HSL color variables for both light and dark web themes. Respond with JSON having top-level keys "light" and "dark". Each theme should include keys "--background", "--foreground", "--primary", and "--accent" with values in the form "H S% L%".',
       },
       {
         role: 'user',
@@ -85,17 +89,22 @@ export async function generateThemePalette(mood: string): Promise<ThemePalette> 
     });
     const data = await res.json();
     const content = data.choices?.[0]?.message?.content || '{}';
-    const palette = JSON.parse(content) as ThemePalette;
+    const palette = JSON.parse(content) as DualThemePalette;
     return palette;
   } catch (e) {
     console.warn('Falling back to base palette for mood', mood, e);
     const base = basePalettes[mood as keyof typeof basePalettes] || basePalettes.fallback;
-    const palette: ThemePalette = {};
-    Object.entries(base).forEach(([key, [h, s, l]]) => {
-      palette[key] = `${Math.round(randomWithin(h, 5))} ${Math.round(
-        randomWithin(s, 5)
-      )}% ${Math.round(randomWithin(l, 5))}%`;
-    });
-    return palette;
+
+    const buildPalette = (): ThemePalette => {
+      const palette: ThemePalette = {};
+      Object.entries(base).forEach(([key, [h, s, l]]) => {
+        palette[key] = `${Math.round(randomWithin(h, 5))} ${Math.round(
+          randomWithin(s, 5)
+        )}% ${Math.round(randomWithin(l, 5))}%`;
+      });
+      return palette;
+    };
+
+    return { light: buildPalette(), dark: buildPalette() };
   }
 }

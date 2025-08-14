@@ -41,9 +41,11 @@ export class ChatService {
   private apiKeyList: string[];
   private baseUrl = 'https://openrouter.ai/api/v1';
   private telemetry = {
-    keyUsage: {} as Record<string, {success: number, failures: number}>,
+    keyUsage: {} as Record<string, {success: number; failures: number; cooldownUntil?: number}>,
     lastUsedKey: '',
   };
+
+  private static COOLDOWN_MS = 5 * 60 * 1000; // 5 minutes
 
   // Remember the last working key across instances
   private static activeKey: string | null = null;
@@ -76,17 +78,27 @@ export class ChatService {
   private trackKeyUsage(key: string, success: boolean) {
     const shortKey = key.slice(-4);
     if (!this.telemetry.keyUsage[shortKey]) {
-      this.telemetry.keyUsage[shortKey] = {success: 0, failures: 0};
+      this.telemetry.keyUsage[shortKey] = { success: 0, failures: 0 };
     }
-    
+
+    const usage = this.telemetry.keyUsage[shortKey];
+
     if (success) {
-      this.telemetry.keyUsage[shortKey].success++;
+      usage.success++;
+      usage.cooldownUntil = undefined;
       this.telemetry.lastUsedKey = shortKey;
     } else {
-      this.telemetry.keyUsage[shortKey].failures++;
+      usage.failures++;
+      usage.cooldownUntil = Date.now() + ChatService.COOLDOWN_MS;
     }
-    
+
     this.saveKeyTelemetry();
+  }
+
+  private isKeyInCooldown(key: string): boolean {
+    const shortKey = key.slice(-4);
+    const usage = this.telemetry.keyUsage[shortKey];
+    return !!(usage?.cooldownUntil && usage.cooldownUntil > Date.now());
   }
 
   private static loadActiveKey(): string | null {
@@ -207,25 +219,32 @@ export class ChatService {
       throw new Error('No valid API keys available. Please check your settings.');
     }
 
+    // Remove keys that are currently in cooldown
+    const usableKeys = keys.filter(k => !this.isKeyInCooldown(k));
+
+    if (usableKeys.length === 0) {
+      throw new Error('All API keys are temporarily disabled after recent failures.');
+    }
+
     let lastError: Error | null = null;
 
     // Only show visual feedback if we have multiple keys to try
-    const showRetryFeedback = keys.length > 1;
+    const showRetryFeedback = usableKeys.length > 1;
 
     // Determine starting key based on last success
     const active = ChatService.loadActiveKey();
-    let startIndex = active ? keys.indexOf(active) : -1;
+    let startIndex = active ? usableKeys.indexOf(active) : -1;
     if (startIndex === -1) {
-      startIndex = keys.indexOf(this.apiKey);
+      startIndex = usableKeys.indexOf(this.apiKey);
       if (startIndex === -1) startIndex = 0;
     }
 
-    const rotate = (i: number) => (startIndex + i) % keys.length;
+    const rotate = (i: number) => (startIndex + i) % usableKeys.length;
 
     // Try each key in order until one succeeds
-    for (let attempt = 0; attempt < keys.length; attempt++) {
+    for (let attempt = 0; attempt < usableKeys.length; attempt++) {
       const idx = rotate(attempt);
-      const key = keys[idx].trim();
+      const key = usableKeys[idx].trim();
       try {
         if (attempt > 0 && showRetryFeedback) {
           toast.message(`Connecting with backup key ${attempt + 1}...`, {
@@ -258,7 +277,7 @@ export class ChatService {
         this.trackKeyUsage(key, false);
         ChatService.setCooldown(key);
         lastError = error as Error;
-        if (attempt === keys.length - 1) break;
+        if (attempt === usableKeys.length - 1) break;
       }
     }
 

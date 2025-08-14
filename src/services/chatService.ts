@@ -47,6 +47,8 @@ export class ChatService {
 
   // Remember the last working key across instances
   private static activeKey: string | null = null;
+  // Track temporarily failing keys to avoid retrying them repeatedly
+  private static keyCooldowns: Record<string, number> = {};
 
   constructor(apiKey: string) {
     this.apiKey = apiKey;
@@ -99,6 +101,48 @@ export class ChatService {
     localStorage.setItem('vivica-active-api-key', key);
   }
 
+  private static loadCooldowns() {
+    if (Object.keys(ChatService.keyCooldowns).length > 0) return;
+    const saved = localStorage.getItem('vivica-key-cooldowns');
+    if (saved) {
+      try {
+        ChatService.keyCooldowns = JSON.parse(saved);
+      } catch {
+        ChatService.keyCooldowns = {};
+      }
+    }
+  }
+
+  private static saveCooldowns() {
+    localStorage.setItem('vivica-key-cooldowns', JSON.stringify(ChatService.keyCooldowns));
+  }
+
+  private static setCooldown(key: string, ms = 5 * 60 * 1000) {
+    ChatService.loadCooldowns();
+    ChatService.keyCooldowns[key] = Date.now() + ms;
+    ChatService.saveCooldowns();
+  }
+
+  private static isInCooldown(key: string): boolean {
+    ChatService.loadCooldowns();
+    const expiry = ChatService.keyCooldowns[key];
+    if (!expiry) return false;
+    if (Date.now() > expiry) {
+      delete ChatService.keyCooldowns[key];
+      ChatService.saveCooldowns();
+      return false;
+    }
+    return true;
+  }
+
+  private static clearCooldown(key: string) {
+    ChatService.loadCooldowns();
+    if (ChatService.keyCooldowns[key]) {
+      delete ChatService.keyCooldowns[key];
+      ChatService.saveCooldowns();
+    }
+  }
+
   private async trySendWithKey(request: ChatRequest, apiKey: string): Promise<Response> {
     try {
       const response = await fetch(`${this.baseUrl}/chat/completions`, {
@@ -149,17 +193,18 @@ export class ChatService {
 
     // Get all API keys from storage - constructor key first, then settings keys
     const settings = JSON.parse(localStorage.getItem('vivica-settings') || '{}');
-    const keys = [
+    const keys = Array.from(new Set([
       this.apiKey,
       settings.apiKey1 || '',
       settings.apiKey2 || '',
       settings.apiKey3 || ''
     ]
-      .map(k => k.trim())
-      .filter(Boolean);
+      .map((k: string) => k.trim())
+      .filter(Boolean)))
+      .filter(k => !ChatService.isInCooldown(k));
 
     if (keys.length === 0) {
-      throw new Error('No valid API keys configured. Please check your settings.');
+      throw new Error('No valid API keys available. Please check your settings.');
     }
 
     let lastError: Error | null = null;
@@ -193,6 +238,7 @@ export class ChatService {
         const response = await this.trySendWithKey(request, key);
         this.trackKeyUsage(key, true);
         ChatService.setActiveKey(key);
+        ChatService.clearCooldown(key);
 
         if (attempt > 0) {
           const feedback = showRetryFeedback ? 
@@ -210,6 +256,7 @@ export class ChatService {
         return response;
       } catch (error) {
         this.trackKeyUsage(key, false);
+        ChatService.setCooldown(key);
         lastError = error as Error;
         if (attempt === keys.length - 1) break;
       }

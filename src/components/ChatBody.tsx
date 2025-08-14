@@ -15,6 +15,7 @@ import { RSSWidget } from "@/components/RSSWidget";
 import { ChatService, ChatMessage } from "@/services/chatService";
 import { Storage } from "@/utils/storage";
 import { saveWelcomeMessage } from "@/utils/indexedDb";
+import { getPrimaryApiKey } from "@/utils/api";
 
 const getUserName = () => {
   try {
@@ -100,7 +101,7 @@ export const ChatBody = forwardRef<HTMLDivElement, ChatBodyProps>(
         const profiles = JSON.parse(raw) as ProfileBrief[];
         const vivica = profiles.find(p => p.isVivica) || Storage.createVivicaProfile();
 
-        const apiKey = localStorage.getItem('openrouter-api-key');
+        const apiKey = getPrimaryApiKey();
         if (!apiKey) throw new Error('missing api key');
 
         const chatService = new ChatService(apiKey);

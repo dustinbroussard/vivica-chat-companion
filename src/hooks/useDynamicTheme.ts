@@ -1,18 +1,20 @@
-import { useEffect, useRef } from 'react';
+import { useEffect } from 'react';
 import { generateThemePalette } from '@/utils/generateThemePalette';
 import { generateNarration } from '@/utils/generateNarration';
 
 export function useDynamicTheme(mood: string, enabled: boolean) {
-  const timeoutRef = useRef<number>();
-
   useEffect(() => {
-    if (!enabled) return;
+    const root = document.documentElement;
+    if (!enabled) {
+      root.removeAttribute('style');
+      return;
+    }
 
-    window.clearTimeout(timeoutRef.current);
-    timeoutRef.current = window.setTimeout(() => {
+    let cancelled = false;
+    const applyTheme = async () => {
       try {
-        const palette = generateThemePalette(mood);
-        const root = document.documentElement;
+        const palette = await generateThemePalette(mood);
+        if (cancelled) return;
         Object.entries(palette).forEach(([key, value]) => {
           root.style.setProperty(key, value);
         });
@@ -22,10 +24,13 @@ export function useDynamicTheme(mood: string, enabled: boolean) {
         generateNarration(mood);
       } catch (e) {
         console.error('Failed to apply AI theme, falling back', e);
-        document.documentElement.removeAttribute('style');
+        root.removeAttribute('style');
       }
-    }, 500);
+    };
 
-    return () => window.clearTimeout(timeoutRef.current);
+    applyTheme();
+    return () => {
+      cancelled = true;
+    };
   }, [mood, enabled]);
 }

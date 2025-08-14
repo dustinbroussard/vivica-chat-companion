@@ -51,7 +51,7 @@ export const ThemeProvider = ({ children }: { children: React.ReactNode }) => {
     DebouncedStorage.set(STORAGE_KEYS.THEME, { color, variant }, 300);
   }, [color, variant]);
 
-  useDynamicTheme(currentMood, color === 'ai-choice');
+  useDynamicTheme(currentMood, variant, color === 'ai-choice');
 
   const toggleVariant = () => {
     setVariant(variant === 'dark' ? 'light' : 'dark');

@@ -28,6 +28,7 @@ export const ThemeSelector = () => {
     { value: 'red', label: 'Red', color: '#ef4444' },
     { value: 'green', label: 'Green', color: '#10b981' },
     { value: 'purple', label: 'Purple', color: '#8b5cf6' },
+    { value: 'mardi-gold', label: 'Mardi Gold', color: '#d4bd8c' },
   ];
 
   return (

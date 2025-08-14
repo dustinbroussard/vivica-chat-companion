@@ -1,5 +1,6 @@
 import { ChatService, ChatMessage } from '@/services/chatService';
 import { STORAGE_KEYS } from '@/utils/storage';
+import { getPrimaryApiKey } from '@/utils/api';
 
 export type ThemePalette = Record<string, string>;
 export type DualThemePalette = {
@@ -65,7 +66,7 @@ export async function generateThemePalette(mood: string): Promise<DualThemePalet
     const profile = profiles.find(p => p.id === profileId);
     if (!profile) throw new Error('No active profile');
 
-    const apiKey = localStorage.getItem('openrouter-api-key');
+    const apiKey = getPrimaryApiKey();
     if (!apiKey) throw new Error('missing api key');
 
     const chatService = new ChatService(apiKey);

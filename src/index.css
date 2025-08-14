@@ -63,10 +63,26 @@
     --modal-bg: hsl(var(--bg-secondary));
     --modal-radius: 16px;
     --modal-mobile-radius: 0;
+    transition: all 0.5s ease-in-out;
   }
 
   button, [role="button"], input[type="button"], input[type="submit"] {
     touch-action: manipulation;
+  }
+}
+
+.theme-changing {
+  animation: theme-fade 0.5s ease-in-out;
+}
+
+@keyframes theme-fade {
+  from {
+    opacity: 0;
+    filter: blur(4px);
+  }
+  to {
+    opacity: 1;
+    filter: blur(0);
   }
 }
 

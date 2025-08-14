@@ -1,3 +1,6 @@
+import { ChatService, ChatMessage } from '@/services/chatService';
+import { STORAGE_KEYS } from '@/utils/storage';
+
 export type ThemePalette = Record<string, string>;
 
 const basePalettes: Record<string, Record<string, [number, number, number]>> = {
@@ -42,15 +45,57 @@ const basePalettes: Record<string, Record<string, [number, number, number]>> = {
 const randomWithin = (value: number, range: number) =>
   Math.max(0, Math.min(100, value + (Math.random() * 2 - 1) * range));
 
-export function generateThemePalette(mood: string): ThemePalette {
-  // TODO: Replace with LLM-powered palette generation via API.
-  const base = basePalettes[mood as keyof typeof basePalettes] || basePalettes.fallback;
+interface Profile {
+  id: string;
+  model: string;
+  temperature: number;
+  maxTokens: number;
+  codeModel?: string;
+}
 
-  const palette: ThemePalette = {};
-  Object.entries(base).forEach(([key, [h, s, l]]) => {
-    palette[key] = `${Math.round(randomWithin(h, 5))} ${Math.round(
-      randomWithin(s, 5)
-    )}% ${Math.round(randomWithin(l, 5))}%`;
-  });
-  return palette;
+export async function generateThemePalette(mood: string): Promise<ThemePalette> {
+  try {
+    const profileId = localStorage.getItem(STORAGE_KEYS.CURRENT_PROFILE) || '';
+    const rawProfiles = localStorage.getItem(STORAGE_KEYS.PROFILES) || '[]';
+    const profiles: Profile[] = JSON.parse(rawProfiles);
+    const profile = profiles.find(p => p.id === profileId);
+    if (!profile) throw new Error('No active profile');
+
+    const apiKey = localStorage.getItem('openrouter-api-key');
+    if (!apiKey) throw new Error('missing api key');
+
+    const chatService = new ChatService(apiKey);
+    const messages: ChatMessage[] = [
+      {
+        role: 'system',
+        content:
+          'You generate JSON containing CSS HSL color variables for a web theme. Respond with JSON having keys "--background", "--foreground", "--primary", and "--accent" with values in the form "H S% L%".',
+      },
+      {
+        role: 'user',
+        content: `Mood: ${mood}`,
+      },
+    ];
+
+    const res = await chatService.sendMessage({
+      model: profile.model,
+      messages,
+      temperature: profile.temperature,
+      max_tokens: profile.maxTokens,
+    });
+    const data = await res.json();
+    const content = data.choices?.[0]?.message?.content || '{}';
+    const palette = JSON.parse(content) as ThemePalette;
+    return palette;
+  } catch (e) {
+    console.warn('Falling back to base palette for mood', mood, e);
+    const base = basePalettes[mood as keyof typeof basePalettes] || basePalettes.fallback;
+    const palette: ThemePalette = {};
+    Object.entries(base).forEach(([key, [h, s, l]]) => {
+      palette[key] = `${Math.round(randomWithin(h, 5))} ${Math.round(
+        randomWithin(s, 5)
+      )}% ${Math.round(randomWithin(l, 5))}%`;
+    });
+    return palette;
+  }
 }

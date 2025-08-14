@@ -8,7 +8,7 @@ import {
 import { Storage, DebouncedStorage, STORAGE_KEYS } from '@/utils/storage';
 
 export type ThemeVariant = 'dark' | 'light';
-export type ThemeColor = 'default' | 'blue' | 'red' | 'green' | 'purple';
+export type ThemeColor = 'default' | 'blue' | 'red' | 'green' | 'purple' | 'mardi-gold';
 
 // Add a toggleVariant function for compatibility
 interface ThemeContextValue {

@@ -7,13 +7,21 @@ type ThemeVariant = 'dark' | 'light';
 
 export function useDynamicTheme(mood: string, variant: ThemeVariant, enabled: boolean) {
   const paletteRef = useRef<DualThemePalette | null>(null);
+  const lastMoodRef = useRef<string | null>(null);
 
   useEffect(() => {
     const root = document.documentElement;
     if (!enabled) {
       root.removeAttribute('style');
       paletteRef.current = null;
+      lastMoodRef.current = null;
       return;
+    }
+
+    // Regenerate the palette when the mood changes
+    if (lastMoodRef.current !== mood) {
+      paletteRef.current = null;
+      lastMoodRef.current = mood;
     }
 
     let cancelled = false;

@@ -190,17 +190,23 @@ export class ChatService {
   async sendMessage(request: ChatRequest): Promise<Response> {
     // Route to code model if this is a code request
     const isCode = request.isCodeRequest ?? this.isCodeRequest(request.messages);
-    const effectiveModel = isCode && request.profile?.codeModel 
-      ? request.profile.codeModel 
+    const effectiveModel = isCode && request.profile?.codeModel
+      ? request.profile.codeModel
       : request.model;
+
+    // Exclude profile metadata from the API request body
+    const { profile: _profile, isCodeRequest: _unused, ...rest } = request;
+    const apiRequest: ChatRequest = {
+      ...rest,
+      model: effectiveModel,
+    };
+
+    // Persist detection result for callers that rely on the flag
+    request.isCodeRequest = isCode;
 
     console.log('Sending request to OpenRouter:', {
       url: `${this.baseUrl}/chat/completions`,
-      request: {
-        ...request,
-        model: effectiveModel,
-        isCodeRequest: isCode
-      }
+      request: apiRequest,
     });
 
     // Get all API keys from storage - constructor key first, then settings keys
@@ -254,7 +260,7 @@ export class ChatService {
           await new Promise(resolve => setTimeout(resolve, 300));
         }
 
-        const response = await this.trySendWithKey(request, key);
+        const response = await this.trySendWithKey(apiRequest, key);
         this.trackKeyUsage(key, true);
         ChatService.setActiveKey(key);
         ChatService.clearCooldown(key);

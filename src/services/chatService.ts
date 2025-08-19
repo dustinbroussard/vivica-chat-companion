@@ -39,7 +39,7 @@ export class ChatService {
   private apiKey: string;
   // apiKeyList is unused; keep until multi-key refactor
   private apiKeyList: string[];
-  private baseUrl = 'https://openrouter.ai/api/v1';
+  private baseUrl: string;
   private telemetry = {
     keyUsage: {} as Record<string, {success: number; failures: number; cooldownUntil?: number}>,
     lastUsedKey: '',
@@ -52,8 +52,15 @@ export class ChatService {
   // Track temporarily failing keys to avoid retrying them repeatedly
   private static keyCooldowns: Record<string, number> = {};
 
-  constructor(apiKey: string) {
+  constructor(apiKey: string, apiUrl?: string) {
+    if (!apiKey) throw new Error('API key is required');
     this.apiKey = apiKey;
+    // Allow API URL override via parameter or Vite env var
+    this.baseUrl =
+      apiUrl || import.meta.env.VITE_OPENROUTER_API_URL || 'https://openrouter.ai/api/v1';
+    if (this.baseUrl.startsWith('http://') && window.location.protocol === 'https:') {
+      console.warn('Using HTTP API endpoint on HTTPS page may be blocked due to mixed content.');
+    }
     this.initKeyTelemetry();
   }
 
@@ -157,14 +164,20 @@ export class ChatService {
 
   private async trySendWithKey(request: ChatRequest, apiKey: string): Promise<Response> {
     try {
+      const referer = /^https?:/i.test(window.location.origin)
+        ? window.location.origin
+        : undefined;
+      const headers: Record<string, string> = {
+        'Authorization': `Bearer ${apiKey}`,
+        'Content-Type': 'application/json',
+        'X-Title': 'Vivica Chat Companion',
+      };
+      if (referer) {
+        headers['HTTP-Referer'] = referer;
+      }
       const response = await fetch(`${this.baseUrl}/chat/completions`, {
         method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${apiKey}`,
-          'Content-Type': 'application/json',
-          'HTTP-Referer': window.location.origin,
-          'X-Title': 'Vivica Chat Companion'
-        },
+        headers,
         body: JSON.stringify(request)
       });
 

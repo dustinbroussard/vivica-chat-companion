@@ -16,6 +16,7 @@ export type ThemeColor =
   | 'green'
   | 'purple'
   | 'mardi-gold'
+  | 'mardi-gras'
   | 'ai-choice';
 
 // Add a toggleVariant function for compatibility

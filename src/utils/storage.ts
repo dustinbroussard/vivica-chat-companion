@@ -1,3 +1,5 @@
+import { getDb, getAllMemoriesFromDb, getCachedWelcomeMessages, getAllConversationsFromDb, type MemoryEntry, type ConversationEntry, type WelcomeMessage } from './indexedDb';
+
 // Storage utilities with graceful fallbacks
 export class Storage {
   private static isAvailable(): boolean {
@@ -184,14 +186,25 @@ export async function exportAllData(): Promise<Record<string, unknown>> {
     }
   });
 
-  // Include conversation summaries from IndexedDB
+  // Include IndexedDB data
   try {
-    const memories = await getAllMemoriesFromDb();
+    const [memories, welcomeMessages, conversations] = await Promise.all([
+      getAllMemoriesFromDb(),
+      getCachedWelcomeMessages(),
+      getAllConversationsFromDb()
+    ]);
+
     if (memories.length) {
       data['_conversationMemories'] = memories;
     }
+    if (welcomeMessages.length) {
+      data['_welcomeMessages'] = welcomeMessages;
+    }
+    if (conversations.length) {
+      data['_conversations'] = conversations;
+    }
   } catch (e) {
-    console.warn('Failed to load conversation memories for export', e);
+    console.warn('Failed to load IndexedDB data for export', e);
   }
 
   return data;
@@ -204,19 +217,41 @@ export async function importAllData(data: Record<string, unknown>): Promise<void
       }
     });
 
-  // Import conversation summaries if present
-  if (data['_conversationMemories']) {
-    try {
+  // Import IndexedDB data if present
+  try {
+    const db = await getDb();
+
+    if (data['_conversationMemories']) {
       const memories = data['_conversationMemories'] as MemoryEntry[];
-      const db = await getDb();
       const tx = db.transaction('memories', 'readwrite');
+      await tx.store.clear();
       for (const memory of memories) {
         await tx.store.put(memory);
       }
       await tx.done;
-    } catch (e) {
-      console.warn('Failed to import conversation memories', e);
     }
+
+    if (data['_welcomeMessages']) {
+      const messages = data['_welcomeMessages'] as WelcomeMessage[];
+      const tx = db.transaction('welcomeMessages', 'readwrite');
+      await tx.store.clear();
+      for (const msg of messages) {
+        await tx.store.put(msg);
+      }
+      await tx.done;
+    }
+
+    if (data['_conversations']) {
+      const conversations = data['_conversations'] as ConversationEntry[];
+      const tx = db.transaction('conversations', 'readwrite');
+      await tx.store.clear();
+      for (const conv of conversations) {
+        await tx.store.put(conv);
+      }
+      await tx.done;
+    }
+  } catch (e) {
+    console.warn('Failed to import IndexedDB data', e);
   }
 
   window.dispatchEvent(new Event('storageChanged'));

@@ -1,7 +1,7 @@
 
 import { useState, useEffect } from "react";
 import { X, AlertTriangle, Key, Save, Trash } from "lucide-react";
-import { STORAGE_KEYS } from "@/utils/storage";
+import { exportAllData, importAllData } from "@/utils/storage";
 import {
   Dialog,
   DialogContent,
@@ -188,17 +188,7 @@ export const SettingsModal = ({ isOpen, onClose }: SettingsModalProps) => {
                 variant="outline"
                 onClick={async () => {
                   try {
-                    const data: Record<string, unknown> = {};
-                    Object.values(STORAGE_KEYS).forEach(key => {
-                      const value = localStorage.getItem(key);
-                      if (value) {
-                        try {
-                          data[key] = JSON.parse(value);
-                        } catch {
-                          data[key] = value;
-                        }
-                      }
-                    });
+                    const data = await exportAllData();
                     const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
                     const url = URL.createObjectURL(blob);
                     const a = document.createElement('a');
@@ -221,21 +211,17 @@ export const SettingsModal = ({ isOpen, onClose }: SettingsModalProps) => {
                   const input = document.createElement('input');
                   input.type = 'file';
                   input.accept = '.json';
-                  input.onchange = (e) => {
+                  input.onchange = async (e) => {
                     const file = (e.target as HTMLInputElement).files?.[0];
                     if (!file) return;
-                    
+
                     const reader = new FileReader();
-                    reader.onload = (event) => {
+                    reader.onload = async (event) => {
                       try {
                         const contents = event.target?.result as string;
                         const data = JSON.parse(contents);
                         if (typeof data === 'object' && data !== null) {
-                          Object.entries(data).forEach(([key, value]) => {
-                            if (Object.values(STORAGE_KEYS).includes(key as string)) {
-                              localStorage.setItem(key, JSON.stringify(value));
-                            }
-                          });
+                          await importAllData(data);
                           toast.success('Backup restored successfully!');
                           setTimeout(() => window.location.reload(), 1000);
                         }

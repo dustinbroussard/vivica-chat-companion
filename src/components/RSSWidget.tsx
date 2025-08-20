@@ -23,7 +23,8 @@ async function fetchRSSSummariesWithLinks(urls: string[]): Promise<Headline[]> {
   
   for (const url of urls) {
     try {
-      const resp = await fetch(`${CORS_PROXY}${url}`);
+      // Use encoded URL with the proxy to bypass CORS restrictions
+      const resp = await fetch(`${CORS_PROXY}${encodeURIComponent(url)}`);
       const data = await resp.text();
       if (!data) continue;
 

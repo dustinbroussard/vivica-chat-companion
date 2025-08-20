@@ -175,16 +175,27 @@ export const STORAGE_KEYS = {
 
 export async function exportAllData(): Promise<Record<string, unknown>> {
   const data: Record<string, unknown> = {};
-  Object.values(STORAGE_KEYS).forEach(key => {
-    const value = localStorage.getItem(key);
-    if (value) {
-      try {
-        data[key] = JSON.parse(value);
-      } catch {
-        data[key] = value;
+
+  // Export all relevant localStorage keys
+  for (let i = 0; i < localStorage.length; i++) {
+    const key = localStorage.key(i);
+    if (!key) continue;
+    // Include all app data keys and API keys
+    if (
+      key.startsWith('vivica-') ||
+      key === 'openrouter-api-key' ||
+      key === 'braveApiKey'
+    ) {
+      const value = localStorage.getItem(key);
+      if (value !== null) {
+        try {
+          data[key] = JSON.parse(value);
+        } catch {
+          data[key] = value;
+        }
       }
     }
-  });
+  }
 
   // Include IndexedDB data
   try {
@@ -211,11 +222,12 @@ export async function exportAllData(): Promise<Record<string, unknown>> {
 }
 
 export async function importAllData(data: Record<string, unknown>): Promise<void> {
-    Object.entries(data).forEach(([key, value]) => {
-      if (Object.values(STORAGE_KEYS).includes(key as string)) {
-        Storage.set(key, value);
-      }
-    });
+  // Restore localStorage data
+  Object.entries(data).forEach(([key, value]) => {
+    if (!key.startsWith('_')) {
+      Storage.set(key, value);
+    }
+  });
 
   // Import IndexedDB data if present
   try {

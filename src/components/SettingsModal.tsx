@@ -1,7 +1,7 @@
 
 import { useState, useEffect } from "react";
-import { X, AlertTriangle, Key, Save, Trash } from "lucide-react";
-import { exportAllData, importAllData } from "@/utils/storage";
+import { X, AlertTriangle, Key, Save, Trash, RotateCcw } from "lucide-react";
+import { exportAllData, importAllData, Storage, STORAGE_KEYS } from "@/utils/storage";
 import {
   Dialog,
   DialogContent,
@@ -17,7 +17,7 @@ import { toast } from "sonner";
 import { ThemeSelector } from "./ThemeSelector";
 import { ApiKeyInput } from "./ApiKeyInput";
 import { DEFAULT_RSS_FEED } from "@/utils/constants";
-import { clearAllConversationsFromDb } from "@/utils/indexedDb";
+import { clearAllConversationsFromDb, getDb } from "@/utils/indexedDb";
 
 interface SettingsModalProps {
   isOpen: boolean;
@@ -66,6 +66,27 @@ export const SettingsModal = ({ isOpen, onClose }: SettingsModalProps) => {
       localStorage.removeItem('vivica-current-conversation');
       toast.success("All conversations cleared");
       window.location.reload();
+    }
+  };
+
+  const handleResetApp = async () => {
+    if (confirm("This will erase all data and reset the app to defaults. Continue?")) {
+      try {
+        localStorage.clear();
+        const db = await getDb();
+        await Promise.all([
+          db.clear('memories'),
+          db.clear('welcomeMessages'),
+          db.clear('conversations')
+        ]);
+        const defaultProfile = Storage.createVivicaProfile();
+        Storage.set(STORAGE_KEYS.PROFILES, [defaultProfile]);
+        Storage.set(STORAGE_KEYS.CURRENT_PROFILE, defaultProfile.id);
+        toast.success('App reset to defaults');
+        setTimeout(() => window.location.reload(), 500);
+      } catch (e) {
+        toast.error('Failed to reset app');
+      }
     }
   };
 
@@ -252,6 +273,14 @@ export const SettingsModal = ({ isOpen, onClose }: SettingsModalProps) => {
             >
               <Trash className="w-4 h-4 mr-2" />
               Clear All Conversations
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={handleResetApp}
+              className="w-full"
+            >
+              <RotateCcw className="w-4 h-4 mr-2" />
+              Reset App
             </Button>
             <p className="text-sm text-muted-foreground">This action cannot be undone</p>
           </div>

@@ -22,7 +22,8 @@ export async function fetchRSSHeadlines(): Promise<Headline[]> {
 
   for (const url of feeds) {
     try {
-      const resp = await fetch(`${CORS_PROXY}${url}`);
+      // Use proxy with encoded URL to avoid CORS issues
+      const resp = await fetch(`${CORS_PROXY}${encodeURIComponent(url)}`);
       const data = await resp.text();
       if (!data) continue;
 
@@ -54,7 +55,8 @@ export async function fetchRSSHeadlines(): Promise<Headline[]> {
 // Fetch the full article HTML via a CORS proxy and extract just the readable
 // content using Mozilla's Readability algorithm.
 export async function fetchArticleText(url: string): Promise<string> {
-  const resp = await fetch(`${CORS_PROXY}${url}`);
+  // Fetch article content through the proxy and decode it
+  const resp = await fetch(`${CORS_PROXY}${encodeURIComponent(url)}`);
   const html = await resp.text();
 
   // Parse the HTML string in a detached document to avoid leaking scripts/styles

@@ -225,7 +225,12 @@ export async function importAllData(data: Record<string, unknown>): Promise<void
   // Restore localStorage data
   Object.entries(data).forEach(([key, value]) => {
     if (!key.startsWith('_')) {
-      Storage.set(key, value);
+      if (typeof value === 'string') {
+        // Preserve raw strings without double JSON encoding
+        localStorage.setItem(key, value);
+      } else {
+        Storage.set(key, value);
+      }
     }
   });
 

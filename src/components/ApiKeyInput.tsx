@@ -13,6 +13,7 @@ interface ApiKeyInputProps {
 export const ApiKeyInput = ({ onApiKeyChange }: ApiKeyInputProps) => {
   const [apiKey, setApiKey] = useState('');
   const [showKey, setShowKey] = useState(false);
+  const [isVerifying, setIsVerifying] = useState(false);
 
   useEffect(() => {
     // Load API key from localStorage on mount
@@ -23,15 +24,32 @@ export const ApiKeyInput = ({ onApiKeyChange }: ApiKeyInputProps) => {
     }
   }, [onApiKeyChange]);
 
-  const handleSave = () => {
-    if (apiKey.trim()) {
-      localStorage.setItem('openrouter-api-key', apiKey.trim());
-      onApiKeyChange(apiKey.trim());
-      toast.success('API key saved successfully');
-    } else {
+  const handleSave = async () => {
+    const trimmed = apiKey.trim();
+    if (!trimmed) {
       localStorage.removeItem('openrouter-api-key');
       onApiKeyChange('');
       toast.success('API key removed');
+      return;
+    }
+
+    setIsVerifying(true);
+    try {
+      const res = await fetch('https://openrouter.ai/api/v1/models', {
+        headers: { Authorization: `Bearer ${trimmed}` }
+      });
+
+      if (!res.ok) {
+        throw new Error('Invalid API key');
+      }
+
+      localStorage.setItem('openrouter-api-key', trimmed);
+      onApiKeyChange(trimmed);
+      toast.success('API key verified and saved');
+    } catch (e) {
+      toast.error('API key validation failed');
+    } finally {
+      setIsVerifying(false);
     }
   };
 
@@ -62,8 +80,8 @@ export const ApiKeyInput = ({ onApiKeyChange }: ApiKeyInputProps) => {
           </Button>
         </div>
         
-        <Button onClick={handleSave} size="sm" className="w-full">
-          Save API Key
+        <Button onClick={handleSave} size="sm" className="w-full" disabled={isVerifying}>
+          {isVerifying ? 'Verifying...' : 'Save API Key'}
         </Button>
         
         <p className="text-xs text-muted-foreground">

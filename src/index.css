@@ -300,7 +300,7 @@
   --background: 0 0% 4%;           /* Ink */
   --foreground: 54 97% 88%;        /* Cream */
 
-  --primary: 290 95% 40%;          /* Purple */
+  --primary: 280 100%, 30%;          /* Purple */
   --primary-foreground: 0 0% 0%;
 
   --accent: 36 91% 50%;            /* Gold */
@@ -356,7 +356,7 @@
   --theme-primary: 292 100%, 30%;    /* ramp for gradients */
   --theme-accent: 36 91% 50%;
 
-  --bubble: 0 0% 0%;
+  --bubble: 300 10% 100%;
   --assistant-bubble-border: 1px solid hsl(var(--border-custom));
 
   /* Brand neon + gradients */
@@ -377,7 +377,7 @@
   --background: 0 0% 100%;
   --foreground: 0 0% 10%;
 
-  --primary: 292 100%, 30%;          /* slightly darker purple for contrast */
+  --primary:  292 100%, 30%;          /* slightly darker purple for contrast */
   --primary-foreground: 0 0% 100%;
 
   --accent: 36 91% 45%;            /* gold */

@@ -293,14 +293,6 @@
   --amber-500: 41 46% 38%;
 }
 
-/* ──────────────────  | MARDI GRAS THEMES ────────────────── */
-/* Palette (hex → hsl)
-   Purple  #6366f1 → 239 84% 67%
-   Gold    #f59e0b →  36 91% 50%
-   Green   #10b981 → 160 84% 39%
-   Cream   #fef9c3 →  54 97% 88%
-   Ink     #0a0a0a →   0  0%  4%
-*/
 
 /* MARDI GRAS — DARK (club stage) */
 [data-theme="mardi-gras-dark"] {
@@ -308,7 +300,7 @@
   --background: 0 0% 4%;           /* Ink */
   --foreground: 54 97% 88%;        /* Cream */
 
-  --primary: 239 84% 67%;          /* Purple */
+  --primary: 290 95% 40%;          /* Purple */
   --primary-foreground: 0 0% 0%;
 
   --accent: 36 91% 50%;            /* Gold */
@@ -342,7 +334,7 @@
 
   /* Your custom tokens */
   --bg-primary: 0 0% 4%;
-  --bg-secondary: 0 0% 7%;
+  --bg-secondary: 150 40% 12%;
   --bg-tertiary: 0 0% 10%;
   --bg-hover: 0 0% 13%;
   --bg-active: 0 0% 16%;
@@ -359,9 +351,9 @@
   --success: 160 84% 39%;          /* green */
   --warning: 36 91% 50%;           /* gold */
   --danger: 0 100% 50%;
-  --info: 239 84% 67%;             /* purple as info */
+  --info: 292 100%, 30%;             /* purple as info */
 
-  --theme-primary: 239 84% 67%;    /* ramp for gradients */
+  --theme-primary: 292 100%, 30%;    /* ramp for gradients */
   --theme-accent: 36 91% 50%;
 
   --bubble: 0 0% 0%;
@@ -385,7 +377,7 @@
   --background: 0 0% 100%;
   --foreground: 0 0% 10%;
 
-  --primary: 239 84% 55%;          /* slightly darker purple for contrast */
+  --primary: 292 100%, 30%;          /* slightly darker purple for contrast */
   --primary-foreground: 0 0% 100%;
 
   --accent: 36 91% 45%;            /* gold */
@@ -410,7 +402,7 @@
   /* Sidebar */
   --sidebar-background: 0 0% 96%;
   --sidebar-foreground: 0 0% 10%;
-  --sidebar-primary: 239 84% 55%;
+  --sidebar-primary: 292 100%, 30%;
   --sidebar-primary-foreground: 0 0% 100%;
   --sidebar-accent: 0 0% 88%;
   --sidebar-accent-foreground: 0 0% 10%;
@@ -419,7 +411,7 @@
 
   /* Your custom tokens */
   --bg-primary: 0 0% 100%;
-  --bg-secondary: 0 0% 96%;
+  --bg-secondary: 120 85% 96%;
   --bg-tertiary: 0 0% 90%;
   --bg-hover: 0 0% 88%;
   --bg-active: 0 0% 84%;
@@ -436,15 +428,15 @@
   --success: 160 84% 32%;
   --warning: 36 91% 45%;
   --danger: 0 100% 45%;
-  --info: 239 84% 55%;
+  --info: 292 100%, 30%;
 
-  --theme-primary: 239 84% 55%;
+  --theme-primary: 292 100%, 30%;
   --theme-accent: 36 91% 50%;
 
   --bubble: 0 0% 100%;
 
   --gradient-primary: linear-gradient(135deg,
-      hsl(239 84% 55%) 0%,
+      hsl(292 100%, 30%) 0%,
       hsl(36 91% 50%) 55%,
       hsl(160 84% 39%) 100%);
   --gradient-accent: linear-gradient(135deg,

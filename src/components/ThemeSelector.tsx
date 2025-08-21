@@ -29,7 +29,7 @@ export const ThemeSelector = () => {
     { value: 'green', label: 'Green', color: '#10b981' },
     { value: 'purple', label: 'Purple', color: '#8b5cf6' },
     { value: 'mardi-gold', label: 'Mardi Gold', color: '#d4bd8c' },
-    { value: 'mardi-gras', label: 'Mardi Gras', color: '#6366f1' },
+    { value: 'mardi-gras', label: 'Mardi Gras', color: '#840099' },
     { value: 'ai-choice', label: 'AI Choice', color: '#ffffff' },
   ];
 

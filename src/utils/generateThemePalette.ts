@@ -1,6 +1,7 @@
 import { ChatService, ChatMessage } from '@/services/chatService';
 import { STORAGE_KEYS } from '@/utils/storage';
 import { getPrimaryApiKey } from '@/utils/api';
+import { toast } from '@/components/ui/sonner';
 
 export type ThemePalette = Record<string, string>;
 export type DualThemePalette = {
@@ -50,6 +51,21 @@ const basePalettes: Record<string, Record<string, [number, number, number]>> = {
 const randomWithin = (value: number, range: number) =>
   Math.max(0, Math.min(100, value + (Math.random() * 2 - 1) * range));
 
+const buildPalette = (base: Record<string, [number, number, number]>): ThemePalette => {
+  const palette: ThemePalette = {};
+  Object.entries(base).forEach(([key, [h, s, l]]) => {
+    palette[key] = `${Math.round(randomWithin(h, 5))} ${Math.round(
+      randomWithin(s, 5)
+    )}% ${Math.round(randomWithin(l, 5))}%`;
+  });
+  return palette;
+};
+
+const fallbackPalette = (mood: string): DualThemePalette => {
+  const base = basePalettes[mood as keyof typeof basePalettes] || basePalettes.fallback;
+  return { light: buildPalette(base), dark: buildPalette(base) };
+};
+
 interface Profile {
   id: string;
   model: string;
@@ -67,7 +83,10 @@ export async function generateThemePalette(mood: string): Promise<DualThemePalet
     if (!profile) throw new Error('No active profile');
 
     const apiKey = getPrimaryApiKey();
-    if (!apiKey) throw new Error('missing api key');
+    if (!apiKey) {
+      toast.error('Please set your OpenRouter API key in Settings.');
+      return fallbackPalette(mood);
+    }
 
     const chatService = new ChatService(apiKey);
     const messages: ChatMessage[] = [
@@ -94,18 +113,6 @@ export async function generateThemePalette(mood: string): Promise<DualThemePalet
     return palette;
   } catch (e) {
     console.warn('Falling back to base palette for mood', mood, e);
-    const base = basePalettes[mood as keyof typeof basePalettes] || basePalettes.fallback;
-
-    const buildPalette = (): ThemePalette => {
-      const palette: ThemePalette = {};
-      Object.entries(base).forEach(([key, [h, s, l]]) => {
-        palette[key] = `${Math.round(randomWithin(h, 5))} ${Math.round(
-          randomWithin(s, 5)
-        )}% ${Math.round(randomWithin(l, 5))}%`;
-      });
-      return palette;
-    };
-
-    return { light: buildPalette(), dark: buildPalette() };
+    return fallbackPalette(mood);
   }
 }

@@ -102,7 +102,10 @@ export const ChatBody = forwardRef<HTMLDivElement, ChatBodyProps>(
         const vivica = profiles.find(p => p.isVivica) || Storage.createVivicaProfile();
 
         const apiKey = getPrimaryApiKey();
-        if (!apiKey) throw new Error('missing api key');
+        if (!apiKey) {
+          toast.error('Please set your OpenRouter API key in Settings.');
+          return;
+        }
 
         const chatService = new ChatService(apiKey);
         const systemPrompt = vivica.systemPrompt;
@@ -120,21 +123,25 @@ export const ChatBody = forwardRef<HTMLDivElement, ChatBodyProps>(
       };
 
       try {
-        let text = await getFresh();
+        const text = await getFresh();
+        if (!text) return;
+        let tmp = text;
         let attempts = 0;
         while (
-          text &&
-          (text === lastWelcomeRef.current || text.length > 120) &&
+          tmp &&
+          (tmp === lastWelcomeRef.current || tmp.length > 120) &&
           attempts < 2
         ) {
-          text = await getFresh();
+          const retry = await getFresh();
+          if (!retry) return;
+          tmp = retry;
           attempts++;
         }
 
-        if (text && text.length <= 120) {
-          lastWelcomeRef.current = text;
-          setWelcomeMsg(text);
-          saveWelcomeMessage(text);
+        if (tmp && tmp.length <= 120) {
+          lastWelcomeRef.current = tmp;
+          setWelcomeMsg(tmp);
+          saveWelcomeMessage(tmp);
           setAnimateWelcome(true);
           return;
         }

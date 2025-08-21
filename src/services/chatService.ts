@@ -33,6 +33,27 @@ export interface StreamContent {
   isCodeRequest?: boolean;
 }
 
+function statusFromResponse(resp: Response, text: string) {
+  const err = new Error(text || `HTTP ${resp.status}`) as Error & {
+    status?: number;
+    body?: string;
+  };
+  err.status = resp.status;
+  err.body = text;
+  return err;
+}
+
+function classify(err: unknown): 'network' | 'rate_limit' | 'unauthorized' | 'server' | 'client' {
+  const e = err as { status?: number; name?: string };
+  const s = e.status;
+  if (!s && (e.name === 'TypeError' || /NetworkError|Failed to fetch/i.test(String(err)))) return 'network';
+  if (s === 401) return 'unauthorized';
+  if (s === 429) return 'rate_limit';
+  if (s && s >= 500) return 'server';
+  if (s && s >= 400) return 'client';
+  return 'network';
+}
+
 export class ChatService {
   /** Primary key used for OpenRouter requests */
   // TODO: allow setting multiple keys here instead of pulling from localStorage
@@ -45,7 +66,7 @@ export class ChatService {
     lastUsedKey: '',
   };
 
-  private static COOLDOWN_MS = 5 * 60 * 1000; // 5 minutes
+  private static COOLDOWN_MS = 60 * 1000; // 1 minute default
 
   // Remember the last working key across instances
   private static activeKey: string | null = null;
@@ -100,12 +121,6 @@ export class ChatService {
     }
 
     this.saveKeyTelemetry();
-  }
-
-  private isKeyInCooldown(key: string): boolean {
-    const shortKey = key.slice(-4);
-    const usage = this.telemetry.keyUsage[shortKey];
-    return !!(usage?.cooldownUntil && usage.cooldownUntil > Date.now());
   }
 
   private static loadActiveKey(): string | null {
@@ -180,9 +195,9 @@ export class ChatService {
         headers,
         body: JSON.stringify(request)
       });
-
       if (!response.ok) {
-        throw new Error(await response.text());
+        const text = await response.text().catch(() => '');
+        throw statusFromResponse(response, text);
       }
       return response;
     } catch (error) {
@@ -231,21 +246,16 @@ export class ChatService {
       settings.apiKey3 || ''
     ]
       .map((k: string) => k.trim())
-      .filter(Boolean)))
-      .filter(k => !ChatService.isInCooldown(k));
+      .filter(Boolean)));
 
-    if (keys.length === 0) {
+    // Prefer static cooldown tracking
+    const usableKeys = keys.filter(k => !ChatService.isInCooldown(k));
+
+    if (usableKeys.length === 0) {
       throw new Error('No valid API keys available. Please check your settings.');
     }
 
-    // Remove keys that are currently in cooldown
-    const usableKeys = keys.filter(k => !this.isKeyInCooldown(k));
-
-    if (usableKeys.length === 0) {
-      throw new Error('All API keys are temporarily disabled after recent failures.');
-    }
-
-    let lastError: Error | null = null;
+    let lastError: unknown = null;
 
     // Only show visual feedback if we have multiple keys to try
     const showRetryFeedback = usableKeys.length > 1;
@@ -294,19 +304,34 @@ export class ChatService {
         return response;
       } catch (error) {
         this.trackKeyUsage(key, false);
-        ChatService.setCooldown(key);
-        lastError = error as Error;
+        lastError = error;
+
+        const kind = classify(error);
+        if (kind === 'rate_limit') {
+          ChatService.setCooldown(key, 60_000);
+        } else if (kind === 'server' || kind === 'network') {
+          ChatService.setCooldown(key, 3 * 60_000);
+        } else if (kind === 'unauthorized') {
+          ChatService.setCooldown(key, 30 * 60_000);
+        } else {
+          // client errors: no cooldown
+        }
+
         if (attempt === usableKeys.length - 1) break;
       }
     }
 
     // All attempts failed - format a helpful error message
-    const errorMsg = lastError?.message.includes('401') 
-      ? 'Invalid API key(s). Please check your settings.'
-      : lastError?.message.includes('rate limit')
-      ? 'Rate limits exceeded on all keys. Please upgrade your plan or try again later.'
-      : 'All API key attempts failed. Please check your connection and keys.';
-    
+    const errorMsg = (() => {
+      const kind = classify(lastError);
+      if (kind === 'unauthorized') return 'Invalid API key. Check Settings → API Keys.';
+      if (kind === 'rate_limit') return 'Rate limited. Try again in a minute.';
+      if (kind === 'server') return 'Upstream error. Try again shortly.';
+      if (kind === 'network') return 'Network error. Check the connection.';
+      const le = lastError as { body?: string; message?: string } | null;
+      return le?.body || le?.message || 'Request failed.';
+    })();
+
     console.error('OpenRouter API failed after all attempts:', errorMsg);
     throw new Error(errorMsg);
   }

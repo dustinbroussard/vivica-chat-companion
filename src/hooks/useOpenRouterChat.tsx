@@ -27,25 +27,48 @@ export const useOpenRouterChat = ({ apiKey }: UseOpenRouterChatProps = {}) => {
     setIsStreaming(true);
     setError(null);
 
+    const chatService = new ChatService(key);
     try {
-      const chatService = new ChatService(key);
-      const response = await chatService.sendMessage({
+      const request = {
         model,
         messages,
         temperature,
         max_tokens: 4000,
         stream: true
-      });
+      };
+      const response = await chatService.sendMessage(request);
 
-      for await (const token of chatService.streamResponse(response)) {
+      for await (const token of chatService.streamResponse(response, request)) {
         onToken(token);
       }
 
       onComplete();
-    } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Unknown error occurred';
-      setError(errorMessage);
-      console.error('OpenRouter API error:', err);
+    } catch (err: unknown) {
+      const msg = String((err as Error)?.message || err);
+      if (/stream/i.test(msg) || /does not support streaming/i.test(msg)) {
+        try {
+          const resp = await chatService.sendMessage({
+            model,
+            messages,
+            temperature,
+            max_tokens: 4000,
+            stream: false,
+          });
+          const data = await resp.json();
+          const content = data?.choices?.[0]?.message?.content ?? '';
+          if (content) onToken(content);
+          onComplete();
+          return;
+        } catch (err2: unknown) {
+          const errorMessage = err2 instanceof Error ? err2.message : 'Unknown error occurred';
+          setError(errorMessage);
+          console.error('OpenRouter API error:', err2);
+        }
+      } else {
+        const errorMessage = err instanceof Error ? err.message : 'Unknown error occurred';
+        setError(errorMessage);
+        console.error('OpenRouter API error:', err);
+      }
     } finally {
       setIsStreaming(false);
     }

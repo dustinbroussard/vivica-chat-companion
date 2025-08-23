@@ -21,6 +21,7 @@ export interface ChatRequest {
     temperature: number;
     maxTokens: number;
   };
+  timeoutMs?: number;
 }
 
 export interface StreamStart {
@@ -46,7 +47,10 @@ function statusFromResponse(resp: Response, text: string) {
 function classify(err: unknown): 'network' | 'rate_limit' | 'unauthorized' | 'server' | 'client' {
   const e = err as { status?: number; name?: string };
   const s = e.status;
-  if (!s && (e.name === 'TypeError' || /NetworkError|Failed to fetch/i.test(String(err)))) return 'network';
+  if (
+    !s &&
+    (e.name === 'TypeError' || e.name === 'AbortError' || /NetworkError|Failed to fetch|TIMEOUT/i.test(String(err)))
+  ) return 'network';
   if (s === 401) return 'unauthorized';
   if (s === 429) return 'rate_limit';
   if (s && s >= 500) return 'server';
@@ -177,7 +181,13 @@ export class ChatService {
     }
   }
 
-  private async trySendWithKey(request: ChatRequest, apiKey: string): Promise<Response> {
+  private async trySendWithKey(
+    request: ChatRequest,
+    apiKey: string,
+    timeoutMs = 30000
+  ): Promise<Response> {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), timeoutMs);
     try {
       const referer = /^https?:/i.test(window.location.origin)
         ? window.location.origin
@@ -193,16 +203,26 @@ export class ChatService {
       const response = await fetch(`${this.baseUrl}/chat/completions`, {
         method: 'POST',
         headers,
-        body: JSON.stringify(request)
+        body: JSON.stringify(request),
+        signal: controller.signal,
       });
       if (!response.ok) {
         const text = await response.text().catch(() => '');
         throw statusFromResponse(response, text);
       }
       return response;
-    } catch (error) {
+    } catch (error: unknown) {
+      const err = error as { name?: string };
+      if (err.name === 'AbortError') {
+        const e = new Error('TIMEOUT') as Error & { status?: number };
+        e.status = 0;
+        console.warn(`Attempt with key ${apiKey?.slice(-4)} timed out`);
+        throw e;
+      }
       console.warn(`Attempt with key ${apiKey?.slice(-4)} failed:`, error);
       throw error;
+    } finally {
+      clearTimeout(timer);
     }
   }
 
@@ -223,7 +243,7 @@ export class ChatService {
       : request.model;
 
     // Exclude profile metadata from the API request body
-    const { profile: _profile, isCodeRequest: _unused, ...rest } = request;
+    const { profile: _profile, isCodeRequest: _unused, timeoutMs = 30000, ...rest } = request;
     const apiRequest: ChatRequest = {
       ...rest,
       model: effectiveModel,
@@ -283,7 +303,7 @@ export class ChatService {
           await new Promise(resolve => setTimeout(resolve, 300));
         }
 
-        const response = await this.trySendWithKey(apiRequest, key);
+        const response = await this.trySendWithKey(apiRequest, key, timeoutMs);
         this.trackKeyUsage(key, true);
         ChatService.setActiveKey(key);
         ChatService.clearCooldown(key);

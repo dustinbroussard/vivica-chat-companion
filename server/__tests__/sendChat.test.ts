@@ -4,13 +4,13 @@ import { sendChat } from '../../src/api/chat.ts';
 
 test('sendChat times out', async () => {
   const orig = global.fetch;
-  global.fetch = (_url: any, opts: any) => new Promise((_, reject) => {
+  global.fetch = (_url: string, opts: { signal: AbortSignal }) => new Promise((_, reject) => {
     opts.signal.addEventListener('abort', () => {
-      const err: any = new Error('AbortError');
+      const err = new Error('AbortError') as Error & { name: string };
       err.name = 'AbortError';
       reject(err);
     });
   });
   await assert.rejects(() => sendChat({ model: 'x', messages: [] }, { timeoutMs: 10 }), /TIMEOUT/);
-  global.fetch = orig as any;
+  global.fetch = orig as typeof fetch;
 });

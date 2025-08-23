@@ -21,6 +21,8 @@ import {
 } from "@/utils/indexedDb";
 import { useTheme, ThemeColor, ThemeVariant } from "@/hooks/useTheme";
 import { getPrimaryApiKey } from "@/utils/api";
+import { useInFlightLock } from "@/hooks/useInFlightLock";
+import { trimHistory } from "@/utils/trimHistory";
 
 function weatherCodeToText(code: number): string {
   const map: Record<number, string> = {
@@ -107,6 +109,7 @@ const Index = () => {
   const chatBodyRef = useRef<HTMLDivElement>(null);
   const [showScrollButton, setShowScrollButton] = useState(false);
   const { setColor, setVariant } = useTheme();
+  const flight = useInFlightLock();
 
   const parseStreamingContent = (text: string) => {
     const regex = /```/g;
@@ -490,10 +493,10 @@ const Index = () => {
   const handleSendMessage = async (content: string, baseConv?: Conversation) => {
     const conversation = baseConv || currentConversation;
     if (!conversation || !content.trim() || !currentProfile) return;
-
-
-    // Check for a /search command before routing the message to the LLM
-    const searchMatch = content.trim().match(/^\/search\s+(.*)/i);
+    if (!flight.lock()) return;
+    try {
+      // Check for a /search command before routing the message to the LLM
+      const searchMatch = content.trim().match(/^\/search\s+(.*)/i);
 
     const userMessage: Message = {
       id: Date.now().toString(),
@@ -528,13 +531,14 @@ const Index = () => {
     }
 
     const systemPrompt = await buildSystemPrompt();
-    let chatMessages: ChatMessage[] = [
-      { role: 'system', content: systemPrompt },
-      ...updatedConversation.messages.map(m => ({ role: m.role, content: m.content }))
-    ];
+      let chatMessages: ChatMessage[] = [
+        { role: 'system', content: systemPrompt },
+        ...updatedConversation.messages.map(m => ({ role: m.role, content: m.content }))
+      ];
+      chatMessages = trimHistory(chatMessages);
 
-    // If this is a /search command, fetch results from Brave Search
-    if (searchMatch) {
+      // If this is a /search command, fetch results from Brave Search
+      if (searchMatch) {
       const query = searchMatch[1];
       const braveKey = localStorage.getItem('braveApiKey');
       if (!braveKey) {
@@ -572,6 +576,7 @@ const Index = () => {
           ...convWithResults.messages.map(m => ({ role: m.role, content: m.content })),
           { role: 'user', content: 'Summarize or comment on the search results above in your signature style.' }
         ];
+        chatMessages = trimHistory(chatMessages);
 
         updatedConversation = convWithResults; // continue with new conversation state
       } catch (err) {
@@ -588,7 +593,7 @@ const Index = () => {
       try {
         const first = await chatService.sendMessageJson({
           model: currentProfile.model,
-          messages: chatMessages,
+          messages: trimHistory(chatMessages),
           temperature: currentProfile.temperature,
           max_tokens: currentProfile.maxTokens,
           tools: [BRAVE_SEARCH_TOOL],
@@ -611,12 +616,12 @@ const Index = () => {
             }
           }
 
-          const finalData = await chatService.sendMessageJson({
-            model: currentProfile.model,
-            messages: chatMessages,
-            temperature: currentProfile.temperature,
-            max_tokens: currentProfile.maxTokens
-          });
+            const finalData = await chatService.sendMessageJson({
+              model: currentProfile.model,
+              messages: trimHistory(chatMessages),
+              temperature: currentProfile.temperature,
+              max_tokens: currentProfile.maxTokens
+            });
 
           const finalContent = finalData.choices?.[0]?.message?.content || '';
 
@@ -651,6 +656,7 @@ const Index = () => {
           ...updatedConversation.messages.map(m => ({ role: m.role, content: m.content })),
           choice.message
         ];
+        chatMessages = trimHistory(chatMessages);
       } catch (err) {
         console.warn('Brave tool call failed', err);
       }
@@ -677,16 +683,16 @@ const Index = () => {
       conv.id === conversation.id ? streamingConversation : conv
     ));
 
-    try {
-      const isCodeReq = /```|\bcode\b|function|programming/i.test(content);
-      const response = await chatService.sendMessage({
-        model: currentProfile.model,
-        messages: chatMessages,
-        temperature: currentProfile.temperature,
-        max_tokens: currentProfile.maxTokens,
-        stream: true,
-        isCodeRequest: isCodeReq
-      });
+      try {
+        const isCodeReq = /```|\bcode\b|function|programming/i.test(content);
+        const response = await chatService.sendMessage({
+          model: currentProfile.model,
+          messages: trimHistory(chatMessages),
+          temperature: currentProfile.temperature,
+          max_tokens: currentProfile.maxTokens,
+          stream: true,
+          isCodeRequest: isCodeReq
+        });
       // TODO: if isCodeReq, send full code output to Vivica's model for a human
       // explanation before finalizing the message
 
@@ -781,10 +787,12 @@ const Index = () => {
       ));
 
       toast.error('Failed to get AI response. Please try again.');
-    } finally {
-      setIsTyping(false);
     }
-  };
+  } finally {
+    setIsTyping(false);
+    flight.release();
+  }
+};
 
   const handleRetryMessage = (messageId: string) => {
     if (!currentConversation) return;

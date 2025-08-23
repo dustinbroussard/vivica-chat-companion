@@ -12,7 +12,7 @@ app.get('/health', (_req, res) => {
 });
 
 app.post('/mock-llm', async (req, res) => {
-  const { delay = 0, status = 200 } = req.query as any;
+  const { delay = 0, status = 200 } = req.query as Record<string, string | undefined>;
   await new Promise(r => setTimeout(r, Number(delay)));
   if (Number(status) !== 200) {
     return res.status(Number(status)).json({ error: 'mock error' });
@@ -34,11 +34,12 @@ app.post('/api/chat', async (req: Request, res: Response) => {
     const ms = Date.now() - start;
     console.log(`[CHAT] id=${requestId} turn=${turn} status=200 t=${ms}ms`);
     res.json(data);
-  } catch (e: any) {
+  } catch (e: unknown) {
     let status = 500;
     let type: string = 'SERVER';
-    let message = e.message || 'Unknown error';
-    if (e.name === 'AbortError') {
+    const err = e as { name?: string; message?: string };
+    let message = err.message || 'Unknown error';
+    if (err.name === 'AbortError') {
       status = 504; type = 'TIMEOUT'; message = 'Upstream timeout';
     } else if (/status=429/.test(message)) {
       status = 429; type = 'RATE_LIMIT';

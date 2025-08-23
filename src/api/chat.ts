@@ -17,8 +17,9 @@ export async function sendChat(payload: ChatPayload, { timeoutMs = 30000 } = {})
     });
     if (!res.ok) throw new Error(`CHAT_${res.status}`);
     return await res.json();
-  } catch (e: any) {
-    if (e.name === 'AbortError') throw new Error('TIMEOUT');
+  } catch (e: unknown) {
+    const err = e as { name?: string };
+    if (err.name === 'AbortError') throw new Error('TIMEOUT');
     throw e;
   } finally {
     clearTimeout(to);

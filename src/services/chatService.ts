@@ -1,5 +1,7 @@
 
 import { toast } from "@/components/ui/sonner";
+import { sanitizeParams, MODEL_CAPS } from './modelCaps';
+import { enforceBudget } from './tokenUtils';
 export interface ChatMessage {
   role: 'user' | 'assistant' | 'system' | 'tool';
   content: string;
@@ -21,6 +23,7 @@ export interface ChatRequest {
     temperature: number;
     maxTokens: number;
   };
+  fallbackModel?: string;
   timeoutMs?: number;
 }
 
@@ -69,6 +72,8 @@ export class ChatService {
     keyUsage: {} as Record<string, {success: number; failures: number; cooldownUntil?: number}>,
     lastUsedKey: '',
   };
+
+  private static CIRCUIT: Record<string, {openUntil?: number; failures: number}> = {};
 
   private static COOLDOWN_MS = 60 * 1000; // 1 minute default
 
@@ -181,49 +186,86 @@ export class ChatService {
     }
   }
 
+  private static isCircuitOpen(model: string): boolean {
+    const s = ChatService.CIRCUIT[model];
+    return !!(s?.openUntil && s.openUntil > Date.now());
+  }
+
+  private static recordFailure(model: string) {
+    const s = (ChatService.CIRCUIT[model] ||= { failures: 0 });
+    s.failures++;
+    if (s.failures >= 3) {
+      s.openUntil = Date.now() + 5 * 60_000;
+    }
+  }
+
+  private static recordSuccess(model: string) {
+    ChatService.CIRCUIT[model] = { failures: 0 };
+  }
+
   private async trySendWithKey(
     request: ChatRequest,
     apiKey: string,
-    timeoutMs = 30000
+    timeoutMs = 30000,
+    rid?: string
   ): Promise<Response> {
-    const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), timeoutMs);
-    try {
-      const referer = /^https?:/i.test(window.location.origin)
-        ? window.location.origin
-        : undefined;
-      const headers: Record<string, string> = {
-        'Authorization': `Bearer ${apiKey}`,
-        'Content-Type': 'application/json',
-        'X-Title': 'Vivica Chat Companion',
-      };
-      if (referer) {
-        headers['HTTP-Referer'] = referer;
-      }
-      const response = await fetch(`${this.baseUrl}/chat/completions`, {
-        method: 'POST',
-        headers,
-        body: JSON.stringify(request),
-        signal: controller.signal,
-      });
-      if (!response.ok) {
-        const text = await response.text().catch(() => '');
-        throw statusFromResponse(response, text);
-      }
-      return response;
-    } catch (error: unknown) {
-      const err = error as { name?: string };
-      if (err.name === 'AbortError') {
-        const e = new Error('TIMEOUT') as Error & { status?: number };
-        e.status = 0;
-        console.warn(`Attempt with key ${apiKey?.slice(-4)} timed out`);
-        throw e;
-      }
-      console.warn(`Attempt with key ${apiKey?.slice(-4)} failed:`, error);
-      throw error;
-    } finally {
-      clearTimeout(timer);
+    const referer = /^https?:/i.test(window.location.origin)
+      ? window.location.origin
+      : undefined;
+    const headers: Record<string, string> = {
+      'Authorization': `Bearer ${apiKey}`,
+      'Content-Type': 'application/json',
+      'X-Title': 'Vivica Chat Companion',
+    };
+    if (referer) {
+      headers['HTTP-Referer'] = referer;
     }
+
+    const endpoint = `${this.baseUrl}/chat/completions`;
+    const send = async () => {
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), timeoutMs);
+      const start = Date.now();
+      try {
+        const resp = await fetch(endpoint, {
+          method: 'POST',
+          headers,
+          body: JSON.stringify(request),
+          signal: controller.signal,
+        });
+        const clone = resp.clone();
+        const text = await clone.text().catch(() => '');
+        if (!resp.ok) {
+          throw statusFromResponse(resp, text);
+        }
+        const elapsed = Math.round(Date.now() - start);
+        console.log('[AI][recv]', {
+          rid,
+          status: resp.status,
+          elapsed,
+          sample: text.slice(0, 200),
+        });
+        return resp;
+      } finally {
+        clearTimeout(timer);
+      }
+    };
+
+    const FAIL_CODES = new Set([408, 409, 429, 500, 502, 503, 504]);
+
+    for (let attempt = 0; attempt < 3; attempt++) {
+      try {
+        return await send();
+      } catch (error: unknown) {
+        const status = (error as { status?: number }).status ?? 0;
+        console.log('[AI][error]', { rid, status, msg: String(error) });
+        if (!FAIL_CODES.has(status) || attempt === 2) {
+          throw error;
+        }
+        await new Promise(r => setTimeout(r, 200 + Math.random() * 400));
+      }
+    }
+    throw new Error('unreachable');
   }
 
   private isCodeRequest(messages: ChatMessage[]): boolean {
@@ -238,24 +280,37 @@ export class ChatService {
   async sendMessage(request: ChatRequest): Promise<Response> {
     // Route to code model if this is a code request
     const isCode = request.isCodeRequest ?? this.isCodeRequest(request.messages);
-    const effectiveModel = isCode && request.profile?.codeModel
+    let effectiveModel = isCode && request.profile?.codeModel
       ? request.profile.codeModel
       : request.model;
 
+    if (ChatService.isCircuitOpen(effectiveModel) && request.fallbackModel) {
+      effectiveModel = request.fallbackModel;
+    }
+
     // Exclude profile metadata from the API request body
-    const { profile: _profile, isCodeRequest: _unused, timeoutMs = 30000, ...rest } = request;
-    const apiRequest: ChatRequest = {
+    const { profile: _profile, isCodeRequest: _unused, timeoutMs = 30000, fallbackModel: _fb, ...rest } = request;
+    let apiRequest: ChatRequest = {
       ...rest,
       model: effectiveModel,
     };
 
+    apiRequest = sanitizeParams(effectiveModel, apiRequest) as ChatRequest;
+
+    const limit = apiRequest.max_tokens || request.profile?.maxTokens || MODEL_CAPS[effectiveModel]?.maxInputTokens;
+    if (apiRequest.messages) {
+      apiRequest.messages = enforceBudget(apiRequest.messages, limit);
+    }
+
     // Persist detection result for callers that rely on the flag
     request.isCodeRequest = isCode;
 
-    console.log('Sending request to OpenRouter:', {
-      url: `${this.baseUrl}/chat/completions`,
-      request: apiRequest,
-    });
+    const rid = (globalThis.crypto as { randomUUID?: () => string } | undefined)?.randomUUID?.() ??
+      Math.random().toString(36).slice(2);
+    const endpoint = `${this.baseUrl}/chat/completions`;
+    const inChars = apiRequest.messages?.reduce((s, m) => s + m.content.length, 0) ?? 0;
+    const { model: _m, messages: _msg, ...params } = apiRequest as Record<string, unknown>;
+    console.log('[AI][send]', { rid, model: effectiveModel, endpoint, inChars, params });
 
     // Get all API keys from storage - constructor key first, then settings keys
     const settings = JSON.parse(localStorage.getItem('vivica-settings') || '{}');
@@ -303,10 +358,12 @@ export class ChatService {
           await new Promise(resolve => setTimeout(resolve, 300));
         }
 
-        const response = await this.trySendWithKey(apiRequest, key, timeoutMs);
+        const response = await this.trySendWithKey(apiRequest, key, timeoutMs, rid);
         this.trackKeyUsage(key, true);
         ChatService.setActiveKey(key);
         ChatService.clearCooldown(key);
+        ChatService.recordSuccess(effectiveModel);
+        Object.defineProperty(response, 'rid', { value: rid, enumerable: true });
 
         if (attempt > 0) {
           const feedback = showRetryFeedback ? 
@@ -325,6 +382,7 @@ export class ChatService {
       } catch (error) {
         this.trackKeyUsage(key, false);
         lastError = error;
+        ChatService.recordFailure(effectiveModel);
 
         const kind = classify(error);
         if (kind === 'rate_limit') {
@@ -352,8 +410,10 @@ export class ChatService {
       return le?.body || le?.message || 'Request failed.';
     })();
 
-    console.error('OpenRouter API failed after all attempts:', errorMsg);
-    throw new Error(errorMsg);
+    console.error('OpenRouter API failed after all attempts:', errorMsg, rid);
+    const err = new Error(`${errorMsg} (Request ID: ${rid})`) as Error & { rid?: string };
+    err.rid = rid;
+    throw err;
   }
 
   async sendMessageJson<T = unknown>(request: ChatRequest): Promise<T> {
@@ -381,6 +441,7 @@ export class ChatService {
     const decoder = new TextDecoder();
     let buffer = '';
 
+    let gotDone = false;
     try {
       while (true) {
         const { done, value } = await reader.read();
@@ -394,8 +455,11 @@ export class ChatService {
           if (line.trim() === '') continue;
           if (line.startsWith('data: ')) {
             const data = line.slice(6);
-            if (data === '[DONE]') return;
-            
+            if (data === '[DONE]') {
+              gotDone = true;
+              return;
+            }
+
             try {
               const parsed = JSON.parse(data);
               const content = parsed.choices?.[0]?.delta?.content;
@@ -416,6 +480,9 @@ export class ChatService {
       }
     } finally {
       reader.releaseLock();
+    }
+    if (!gotDone) {
+      throw new Error('STREAM_ABORTED');
     }
   }
 }

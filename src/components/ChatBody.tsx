@@ -151,7 +151,7 @@ export const ChatBody = forwardRef<HTMLDivElement, ChatBodyProps>(
         setWelcomeError(true);
         setWelcomeMsg('Vivica is brooding. Try again.');
       }
-    }, [conversation?.id, conversation?.messages.length]);
+    }, [conversation]);
 
     const scrollToBottom = () => {
       messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -165,7 +165,7 @@ export const ChatBody = forwardRef<HTMLDivElement, ChatBodyProps>(
       const atBottom =
         el.scrollHeight - el.scrollTop <= el.clientHeight + 16;
       if (atBottom) scrollToBottom();
-    }, [conversation?.messages, isTyping]);
+    }, [conversation?.messages, isTyping, ref]);
 
     // Fetch a dynamic welcome message from the LLM whenever the welcome screen is visible
     useEffect(() => {
@@ -184,7 +184,7 @@ export const ChatBody = forwardRef<HTMLDivElement, ChatBodyProps>(
         window.removeEventListener('focus', onFocus);
         document.removeEventListener('visibilitychange', onVisibility);
       };
-    }, [conversation?.id, conversation?.messages.length, fetchWelcome]);
+    }, [conversation, fetchWelcome]);
 
     useEffect(() => {
       if (!welcomeMsg) return;

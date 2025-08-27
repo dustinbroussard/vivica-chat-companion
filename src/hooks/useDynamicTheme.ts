@@ -1,7 +1,7 @@
 import { useEffect, useRef } from 'react';
 import { generateThemePalette, DualThemePalette } from '@/utils/generateThemePalette';
 import { generateNarration } from '@/utils/generateNarration';
-import { toast } from '@/components/ui/sonner';
+import { toast } from '@/components/ui/use-toast';
 
 type ThemeVariant = 'dark' | 'light';
 

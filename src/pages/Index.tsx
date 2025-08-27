@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { Sidebar } from "@/components/Sidebar";
 import { ChatHeader } from "@/components/ChatHeader";
 import { ChatBody } from "@/components/ChatBody";
@@ -131,7 +131,7 @@ const Index = () => {
     return { display: text, loading: false } as const;
   };
 
-  const applyProfileTheme = (profile: Profile) => {
+  const applyProfileTheme = useCallback((profile: Profile) => {
     if (profile.useProfileTheme && profile.themeColor && profile.themeVariant) {
       setColor(profile.themeColor);
       setVariant(profile.themeVariant);
@@ -140,20 +140,7 @@ const Index = () => {
       setColor(globalTheme.color as ThemeColor);
       setVariant(globalTheme.variant as ThemeVariant);
     }
-  };
-
-  // Initialize default profiles and load data
-  useEffect(() => {
-    console.log("Index component mounted, initializing...");
-    initializeProfiles();
-    loadConversations();
-    loadCurrentProfile();
-    // Drop legacy memory key after migration
-    localStorage.removeItem('vivica-memory');
-    const handler = () => loadCurrentProfile();
-    window.addEventListener('profilesUpdated', handler);
-    return () => window.removeEventListener('profilesUpdated', handler);
-  }, []);
+  }, [setColor, setVariant]);
 
   // Show/hide the scroll-to-bottom button based on scroll position
   useEffect(() => {
@@ -182,7 +169,7 @@ const Index = () => {
     setShowScrollButton(false);
   }, [currentConversation?.id]);
 
-  const initializeProfiles = () => {
+  const initializeProfiles = useCallback(() => {
     const savedProfiles = localStorage.getItem('vivica-profiles');
 
     let profiles: Profile[] = [];
@@ -219,9 +206,9 @@ const Index = () => {
     }
 
     localStorage.setItem('vivica-profiles', JSON.stringify(profiles));
-  };
+  }, []);
 
-  const loadCurrentProfile = () => {
+  const loadCurrentProfile = useCallback(() => {
     const savedProfileId = localStorage.getItem('vivica-current-profile');
     const savedProfiles = localStorage.getItem('vivica-profiles');
 
@@ -260,9 +247,23 @@ const Index = () => {
         localStorage.setItem('vivica-current-profile', profiles[0].id);
       }
     }
-  };
+  }, [applyProfileTheme]);
 
-  const loadConversations = async () => {
+  const handleNewChat = useCallback(() => {
+    const newConversation: Conversation = {
+      id: Date.now().toString(),
+      title: 'New Chat',
+      messages: [],
+      timestamp: new Date(),
+      autoTitled: false,
+    };
+    setConversations(prev => [newConversation, ...prev]);
+    setCurrentConversation(newConversation);
+    setSidebarOpen(false);
+    toast.success("New conversation started!");
+  }, [setConversations, setCurrentConversation, setSidebarOpen]);
+
+  const loadConversations = useCallback(async () => {
     const savedCurrent = localStorage.getItem('vivica-current-conversation');
     let convs: ConversationEntry[] = await getAllConversationsFromDb();
 
@@ -298,7 +299,20 @@ const Index = () => {
     } else {
       handleNewChat();
     }
-  };
+  }, [handleNewChat]);
+
+  // Initialize default profiles and load data
+  useEffect(() => {
+    console.log("Index component mounted, initializing...");
+    initializeProfiles();
+    loadConversations();
+    loadCurrentProfile();
+    // Drop legacy memory key after migration
+    localStorage.removeItem('vivica-memory');
+    const handler = () => loadCurrentProfile();
+    window.addEventListener('profilesUpdated', handler);
+    return () => window.removeEventListener('profilesUpdated', handler);
+  }, [initializeProfiles, loadConversations, loadCurrentProfile]);
 
   // Persist conversations to IndexedDB whenever they change
   useEffect(() => {
@@ -475,21 +489,6 @@ const Index = () => {
 
     return prompt;
   };
-
-  const handleNewChat = () => {
-    const newConversation: Conversation = {
-      id: Date.now().toString(),
-      title: 'New Chat',
-      messages: [],
-      timestamp: new Date(),
-      autoTitled: false,
-    };
-    setConversations(prev => [newConversation, ...prev]);
-    setCurrentConversation(newConversation);
-    setSidebarOpen(false);
-    toast.success("New conversation started!");
-  };
-
   const handleSendMessage = async (content: string, baseConv?: Conversation) => {
     const conversation = baseConv || currentConversation;
     if (!conversation || !content.trim() || !currentProfile) return;

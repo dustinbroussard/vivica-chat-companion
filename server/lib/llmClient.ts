@@ -1,3 +1,6 @@
+const cache = new Map<string, { ts: number; data: unknown }>();
+const CACHE_TTL = 60_000;
+
 export async function callLLM({
   messages, model, signal, maxTokens = 512,
   retry = 1, requestId
@@ -11,6 +14,11 @@ export async function callLLM({
 }) {
   const start = Date.now();
   const body = { model, messages, max_tokens: maxTokens, stream: false };
+  const key = JSON.stringify({ model, messages, maxTokens });
+  const cached = cache.get(key);
+  if (cached && Date.now() - cached.ts < CACHE_TTL) {
+    return cached.data;
+  }
   const url = process.env.LLM_BASE_URL ?? "https://openrouter.ai/api/v1/chat/completions";
   const headers = {
     "Content-Type": "application/json",
@@ -37,6 +45,7 @@ export async function callLLM({
         throw new Error(`LLM_ERROR status=${res.status} body=${text.slice(0, 500)}`);
       }
       const json = await res.json();
+      cache.set(key, { ts: Date.now(), data: json });
       return json;
     } catch (e) {
       if (attempt >= retry) throw e;

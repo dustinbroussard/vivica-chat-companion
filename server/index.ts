@@ -3,6 +3,9 @@ import type { Request, Response } from 'express';
 import { randomUUID } from 'crypto';
 import { callLLM } from './lib/llmClient.js';
 import { trimHistory } from './middleware/trimHistory.js';
+import { authenticate } from './middleware/auth.js';
+import { rateLimit } from './middleware/rateLimit.js';
+import { validateChat } from './middleware/validateChat.js';
 
 const app = express();
 app.use(express.json({ limit: '1mb' }));
@@ -20,8 +23,10 @@ app.post('/mock-llm', async (req, res) => {
   res.json({ id: 'mock', choices: [{ message: { content: 'mock reply' } }] });
 });
 
-app.post('/api/chat', async (req: Request, res: Response) => {
-  const { messages = [], model = 'openrouter/auto', max_tokens } = req.body || {};
+type ChatBody = { messages: Array<{ role: string; content: string }>; model: string; max_tokens?: number };
+
+app.post('/api/chat', authenticate, rateLimit, validateChat, async (req: Request, res: Response) => {
+  const { messages, model, max_tokens } = req.body as ChatBody;
   const turn = messages.length;
   const trimmed = trimHistory(messages);
   const requestId = `${Date.now()}-${randomUUID().slice(0,8)}`;

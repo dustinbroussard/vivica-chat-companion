@@ -1,38 +1,7 @@
-
-import {
-  useState,
-  useEffect,
-  createContext,
-  useContext,
-} from 'react';
+import { useState, useEffect } from 'react';
 import { Storage, DebouncedStorage, STORAGE_KEYS } from '@/utils/storage';
 import { useDynamicTheme } from '@/hooks/useDynamicTheme';
-
-export type ThemeVariant = 'dark' | 'light';
-export type ThemeColor =
-  | 'default'
-  | 'blue'
-  | 'red'
-  | 'green'
-  | 'purple'
-  | 'mardi-gold'
-  | 'mardi-gras'
-  | 'ai-choice';
-
-// Add a toggleVariant function for compatibility
-interface ThemeContextValue {
-  color: ThemeColor;
-  variant: ThemeVariant;
-  currentMood: string;
-  setColor: (color: ThemeColor) => void;
-  setVariant: (variant: ThemeVariant) => void;
-  setMood: (mood: string) => void;
-  toggleVariant: () => void;
-}
-
-// Remove duplicate interface since we defined it above
-
-const ThemeContext = createContext<ThemeContextValue | undefined>(undefined);
+import { ThemeContext, ThemeColor, ThemeVariant } from './theme-context';
 
 export const ThemeProvider = ({ children }: { children: React.ReactNode }) => {
   const [color, setColor] = useState<ThemeColor>('default');
@@ -59,18 +28,8 @@ export const ThemeProvider = ({ children }: { children: React.ReactNode }) => {
   };
 
   return (
-    <ThemeContext.Provider
-      value={{ color, variant, currentMood, setColor, setVariant, setMood, toggleVariant }}
-    >
+    <ThemeContext.Provider value={{ color, variant, currentMood, setColor, setVariant, setMood, toggleVariant }}>
       {children}
     </ThemeContext.Provider>
   );
-};
-
-export const useTheme = () => {
-  const context = useContext(ThemeContext);
-  if (!context) {
-    throw new Error('useTheme must be used within a ThemeProvider');
-  }
-  return context;
 };

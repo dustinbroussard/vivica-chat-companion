@@ -1,7 +1,7 @@
 import { ChatService, ChatMessage } from '@/services/chatService';
 import { STORAGE_KEYS } from '@/utils/storage';
 import { getPrimaryApiKey } from '@/utils/api';
-import { toast } from '@/components/ui/sonner';
+import { toast } from '@/components/ui/use-toast';
 
 export type ThemePalette = Record<string, string>;
 export type DualThemePalette = {

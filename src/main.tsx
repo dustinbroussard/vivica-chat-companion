@@ -2,7 +2,7 @@
 import { createRoot } from 'react-dom/client';
 import App from './App.tsx';
 import './index.css';
-import { ThemeProvider } from './hooks/useTheme';
+import { ThemeProvider } from './hooks/ThemeProvider';
 import { registerSW } from 'virtual:pwa-register';
 
 // Register service worker for PWA functionality

@@ -1,5 +1,5 @@
 
-import { toast } from "@/components/ui/sonner";
+import { toast } from "@/components/ui/use-toast";
 import { sanitizeParams, MODEL_CAPS } from './modelCaps';
 import { enforceBudget } from './tokenUtils';
 export interface ChatMessage {

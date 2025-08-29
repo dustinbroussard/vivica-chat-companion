@@ -41,9 +41,33 @@ function statusFromResponse(resp: Response, text: string) {
   const err = new Error(text || `HTTP ${resp.status}`) as Error & {
     status?: number;
     body?: string;
+    retryAfterMs?: number;
   };
   err.status = resp.status;
   err.body = text;
+  // Respect Retry-After and common rate-limit headers if provided
+  const ra = resp.headers.get('retry-after');
+  const reset = resp.headers.get('x-ratelimit-reset') || resp.headers.get('x-ratelimit-reset-ms');
+  let retryAfterMs: number | undefined;
+  if (ra) {
+    // Retry-After can be seconds or an HTTP date
+    const n = Number(ra);
+    if (!Number.isNaN(n)) retryAfterMs = Math.max(0, Math.round(n * 1000));
+    else {
+      const t = Date.parse(ra);
+      if (!Number.isNaN(t)) retryAfterMs = Math.max(0, t - Date.now());
+    }
+  }
+  if (!retryAfterMs && reset) {
+    const n = Number(reset);
+    if (!Number.isNaN(n)) {
+      // If it's clearly in ms, use as-is; if seconds, multiply
+      retryAfterMs = n > 10_000 ? n : Math.max(0, Math.round(n * 1000));
+    }
+  }
+  if (retryAfterMs && Number.isFinite(retryAfterMs)) {
+    err.retryAfterMs = Math.min(retryAfterMs, 5 * 60_000); // cap at 5 minutes
+  }
   return err;
 }
 
@@ -81,6 +105,16 @@ export class ChatService {
   private static activeKey: string | null = null;
   // Track temporarily failing keys to avoid retrying them repeatedly
   private static keyCooldowns: Record<string, number> = {};
+
+  // Simple pacer to avoid bursty requests across the app
+  private static lastRequestAt = 0;
+  private static MIN_INTERVAL_MS = 300; // ~3 req/s
+  private static async pace() {
+    const now = Date.now();
+    const wait = ChatService.lastRequestAt + ChatService.MIN_INTERVAL_MS - now;
+    if (wait > 0) await new Promise(r => setTimeout(r, wait));
+    ChatService.lastRequestAt = Date.now();
+  }
 
   constructor(apiKey: string, apiUrl?: string) {
     if (!apiKey) throw new Error('API key is required');
@@ -227,6 +261,8 @@ export class ChatService {
       const timer = setTimeout(() => controller.abort(), timeoutMs);
       const start = Date.now();
       try {
+        // Global pacer: keep a minimum gap between requests
+        await ChatService.pace();
         const resp = await fetch(endpoint, {
           method: 'POST',
           headers,
@@ -262,7 +298,11 @@ export class ChatService {
         if (!FAIL_CODES.has(status) || attempt === 2) {
           throw error;
         }
-        await new Promise(r => setTimeout(r, 200 + Math.random() * 400));
+        // Backoff with jitter; prefer Retry-After when provided
+        const ra = (error as { retryAfterMs?: number }).retryAfterMs;
+        const base = Math.min(400 * Math.pow(2, attempt), 4000);
+        const delay = Math.max(ra ?? 0, base + Math.random() * 400);
+        await new Promise(r => setTimeout(r, delay));
       }
     }
     throw new Error('unreachable');
@@ -386,7 +426,8 @@ export class ChatService {
 
         const kind = classify(error);
         if (kind === 'rate_limit') {
-          ChatService.setCooldown(key, 60_000);
+          const ra = (error as { retryAfterMs?: number }).retryAfterMs;
+          ChatService.setCooldown(key, ra && ra > 0 ? ra : 60_000);
         } else if (kind === 'server' || kind === 'network') {
           ChatService.setCooldown(key, 3 * 60_000);
         } else if (kind === 'unauthorized') {

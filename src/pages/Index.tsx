@@ -107,6 +107,8 @@ const Index = () => {
   const [showMemory, setShowMemory] = useState(false);
   const [editingMessage, setEditingMessage] = useState<Message | null>(null);
   const chatBodyRef = useRef<HTMLDivElement>(null);
+  // Debounce auto-title generation to reduce extra LLM calls
+  const titleTimersRef = useRef<Record<string, number>>({});
   const [showScrollButton, setShowScrollButton] = useState(false);
   const { setColor, setVariant } = useTheme();
   const flight = useInFlightLock();
@@ -337,6 +339,15 @@ const Index = () => {
       localStorage.setItem('vivica-current-conversation', currentConversation.id);
     }
   }, [currentConversation]);
+
+  // Cleanup any pending auto-title timers on unmount
+  useEffect(() => {
+    return () => {
+      const timers = titleTimersRef.current;
+      Object.values(timers).forEach(id => clearTimeout(id));
+      titleTimersRef.current = {};
+    };
+  }, []);
 
   const handleProfileChange = (profile: Profile) => {
     setCurrentProfile(profile);
@@ -643,7 +654,13 @@ const Index = () => {
           setConversations(prev => prev.map(conv => conv.id === conversation.id ? finalConv : conv));
 
           if (!conversation.autoTitled) {
-            await handleGenerateTitle(finalConv);
+            const id = finalConv.id;
+            const timers = titleTimersRef.current;
+            if (timers[id]) clearTimeout(timers[id]);
+            timers[id] = window.setTimeout(() => {
+              handleGenerateTitle(finalConv);
+              delete titleTimersRef.current[id];
+            }, 8000);
           }
 
           setIsTyping(false);
@@ -761,7 +778,13 @@ const Index = () => {
         timestamp: new Date()
       };
       if (!conversation.autoTitled) {
-        await handleGenerateTitle(finalConv);
+        const id = finalConv.id;
+        const timers = titleTimersRef.current;
+        if (timers[id]) clearTimeout(timers[id]);
+        timers[id] = window.setTimeout(() => {
+          handleGenerateTitle(finalConv);
+          delete titleTimersRef.current[id];
+        }, 8000);
       }
     } catch (error) {
       const failedMessage: Message = {

@@ -96,6 +96,19 @@ export const ChatBody = forwardRef<HTMLDivElement, ChatBodyProps>(
 
       setWelcomeError(false);
 
+      // Use a short-lived cache to avoid spamming the LLM on focus/visibility changes
+      const CACHE_KEY = 'vivica-welcome-cache';
+      const CACHE_TTL_MS = 15 * 60 * 1000; // 15 minutes
+      try {
+        const cached = JSON.parse(localStorage.getItem(CACHE_KEY) || 'null') as { text: string; ts: number } | null;
+        if (cached && Date.now() - cached.ts < CACHE_TTL_MS) {
+          lastWelcomeRef.current = cached.text;
+          setWelcomeMsg(cached.text);
+          setAnimateWelcome(true);
+          return;
+        }
+      } catch { /* ignore */ }
+
       const getFresh = async () => {
         const raw = localStorage.getItem('vivica-profiles') || '[]';
         const profiles = JSON.parse(raw) as ProfileBrief[];
@@ -126,22 +139,18 @@ export const ChatBody = forwardRef<HTMLDivElement, ChatBodyProps>(
         const text = await getFresh();
         if (!text) return;
         let tmp = text;
-        let attempts = 0;
-        while (
-          tmp &&
-          (tmp === lastWelcomeRef.current || tmp.length > 120) &&
-          attempts < 2
-        ) {
+        // If the LLM repeats the exact same message or exceeds the cap, retry once at most
+        if (tmp && (tmp === lastWelcomeRef.current || tmp.length > 120)) {
           const retry = await getFresh();
-          if (!retry) return;
-          tmp = retry;
-          attempts++;
+          if (retry) tmp = retry;
         }
 
         if (tmp && tmp.length <= 120) {
           lastWelcomeRef.current = tmp;
           setWelcomeMsg(tmp);
           saveWelcomeMessage(tmp);
+          // Save to localStorage cache for TTL gating
+          try { localStorage.setItem(CACHE_KEY, JSON.stringify({ text: tmp, ts: Date.now() })); } catch {}
           setAnimateWelcome(true);
           return;
         }

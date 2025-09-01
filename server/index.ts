@@ -60,6 +60,35 @@ app.post('/api/chat', authenticate, rateLimit, validateChat, async (req: Request
   }
 });
 
+// Simple in-memory cache for model list
+const modelsCache: { ts: number; data: unknown } = { ts: 0, data: null } as any;
+const MODELS_TTL_MS = 12 * 60 * 60 * 1000; // 12 hours
+
+app.get('/api/models', async (_req, res) => {
+  try {
+    const now = Date.now();
+    if (modelsCache.data && now - modelsCache.ts < MODELS_TTL_MS) {
+      return res.json(modelsCache.data);
+    }
+    const url = 'https://openrouter.ai/api/v1/models';
+    const headers: Record<string, string> = { 'Accept': 'application/json' };
+    if (process.env.OPENROUTER_API_KEY) {
+      headers['Authorization'] = `Bearer ${process.env.OPENROUTER_API_KEY}`;
+    }
+    const r = await fetch(url, { headers });
+    if (!r.ok) {
+      const text = await r.text().catch(() => '');
+      return res.status(r.status).json({ error: { type: 'UPSTREAM', message: text || `HTTP ${r.status}` } });
+    }
+    const data = await r.json();
+    modelsCache.data = data;
+    modelsCache.ts = now;
+    res.json(data);
+  } catch (e: any) {
+    res.status(500).json({ error: { type: 'SERVER', message: e?.message || 'Failed to fetch models' } });
+  }
+});
+
 const port = process.env.PORT || 3001;
 app.listen(port, () => {
   console.log(`server listening on ${port}`);

@@ -9,20 +9,9 @@ import {
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import type { ThemeColor, ThemeVariant } from "@/hooks/useTheme";
+import type { Profile } from "@/types/profile";
 
-interface Profile {
-  id: string;
-  name: string;
-  model: string;
-  codeModel?: string;
-  systemPrompt: string;
-  temperature: number;
-  maxTokens: number;
-  isVivica?: boolean;
-  useProfileTheme?: boolean;
-  themeColor?: ThemeColor;
-  themeVariant?: ThemeVariant;
-}
+// Profile type centralized in src/types/profile
 
 interface ProfileSelectionModalProps {
   isOpen: boolean;

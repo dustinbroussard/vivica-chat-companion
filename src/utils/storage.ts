@@ -1,4 +1,5 @@
 import { getDb, getAllMemoriesFromDb, getCachedWelcomeMessages, getAllConversationsFromDb, type MemoryEntry, type ConversationEntry, type WelcomeMessage } from './indexedDb';
+import type { Profile } from '@/types/profile';
 
 // Storage utilities with graceful fallbacks
 export class Storage {
@@ -124,7 +125,7 @@ At least once in every 3–5 responses, break your usual style, tone, or structu
 
 // Debounced storage writer
 export class DebouncedStorage {
-  private static timers: Map<string, NodeJS.Timeout> = new Map();
+  private static timers: Map<string, ReturnType<typeof setTimeout>> = new Map();
 
   static set<T>(key: string, value: T, delay: number = 500): void {
     // Clear existing timer for this key
@@ -175,20 +176,34 @@ export const STORAGE_KEYS = {
 
 export async function exportAllData(): Promise<Record<string, unknown>> {
   const data: Record<string, unknown> = {};
+  // Settings gate for sensitive data in backups
+  let includeKeys = false;
+  try {
+    const st = JSON.parse(localStorage.getItem('vivica-settings') || '{}');
+    includeKeys = !!st.includeKeysInBackup;
+  } catch {}
 
   // Export all relevant localStorage keys
   for (let i = 0; i < localStorage.length; i++) {
     const key = localStorage.key(i);
     if (!key) continue;
     // Include all app data keys and API keys
-    if (
-      key.startsWith('vivica-') ||
-      key === 'openrouter-api-key' ||
-      key === 'braveApiKey'
-    ) {
+    if (key.startsWith('vivica-') || key === 'openrouter-api-key' || key === 'braveApiKey') {
       const value = localStorage.getItem(key);
       if (value !== null) {
         try {
+          if (!includeKeys) {
+            if (key === 'openrouter-api-key' || key === 'braveApiKey') {
+              // Skip exporting raw keys
+              return;
+            }
+            if (key === 'vivica-settings') {
+              const obj = JSON.parse(value);
+              delete obj.apiKey1; delete obj.apiKey2; delete obj.apiKey3; delete obj.braveApiKey;
+              data[key] = obj;
+              return;
+            }
+          }
           data[key] = JSON.parse(value);
         } catch {
           data[key] = value;
@@ -237,7 +252,6 @@ export async function importAllData(data: Record<string, unknown>): Promise<void
   // Import IndexedDB data if present
   try {
     const db = await getDb();
-
     if (data['_conversationMemories']) {
       const memories = data['_conversationMemories'] as MemoryEntry[];
       const tx = db.transaction('memories', 'readwrite');

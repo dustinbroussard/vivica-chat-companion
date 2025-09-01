@@ -1,25 +1,15 @@
 
 import { Menu, Sun, Moon, Bookmark, Sparkles, Loader2 } from "lucide-react";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { ProfileSwitcher } from "./ProfileSwitcher";
 import { useTheme } from "@/hooks/useTheme";
 import type { ThemeColor, ThemeVariant } from "@/hooks/useTheme";
+import { ChatService } from "@/services/chatService";
+import type { Profile } from "@/types/profile";
 
-interface Profile {
-  id: string;
-  name: string;
-  model: string;
-  codeModel?: string;
-  systemPrompt: string;
-  temperature: number;
-  maxTokens: number;
-  isVivica?: boolean;
-  useProfileTheme?: boolean;
-  themeColor?: ThemeColor;
-  themeVariant?: ThemeVariant;
-}
+// Profile type centralized in src/types/profile
 
 interface ChatHeaderProps {
   onMenuToggle: () => void;
@@ -39,6 +29,14 @@ export const ChatHeader = ({
 }: ChatHeaderProps) => {
   const { variant, setVariant } = useTheme();
   const [saving, setSaving] = useState(false);
+  const [health, setHealth] = useState<'ok'|'degraded'|'open'>('ok');
+
+  useEffect(() => {
+    if (currentProfile?.model) {
+      const h = ChatService.getModelHealth(currentProfile.model).state;
+      setHealth(h);
+    }
+  }, [currentProfile?.model]);
 
   const handleSaveClick = async () => {
     if (saving) return;
@@ -78,6 +76,12 @@ export const ChatHeader = ({
 
       <div className="flex items-center gap-3">
         {/* Bookmark triggers the Save & Summarize flow */}
+        <div className="text-xxs px-2 py-1 rounded border border-border mr-2 hidden sm:block"
+          title={health === 'ok' ? 'Model healthy' : health === 'degraded' ? 'Model recently failed; watch performance' : 'Model unstable; using fallback if set'}
+          style={{ color: health === 'ok' ? 'var(--foreground)' : health === 'degraded' ? '#b45309' : '#b91c1c' }}
+        >
+          Health: {health}
+        </div>
         <Button
           variant="ghost"
           size="icon"

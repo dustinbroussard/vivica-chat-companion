@@ -8,8 +8,7 @@ export type ThemeColor =
   | 'green'
   | 'purple'
   | 'mardi-gold'
-  | 'mardi-gras'
-  | 'ai-choice';
+  | 'mardi-gras';
 
 export interface ThemeContextValue {
   color: ThemeColor;

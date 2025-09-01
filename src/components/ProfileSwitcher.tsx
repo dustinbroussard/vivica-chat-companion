@@ -5,20 +5,9 @@ import { Badge } from "@/components/ui/badge";
 import { ProfileSelectionModal } from "./ProfileSelectionModal";
 import { Storage } from "@/utils/storage";
 import type { ThemeColor, ThemeVariant } from "@/hooks/useTheme";
+import type { Profile } from "@/types/profile";
 
-interface Profile {
-  id: string;
-  name: string;
-  model: string;
-  codeModel?: string;
-  systemPrompt: string;
-  temperature: number;
-  maxTokens: number;
-  isVivica?: boolean;
-  useProfileTheme?: boolean;
-  themeColor?: ThemeColor;
-  themeVariant?: ThemeVariant;
-}
+// Profile type centralized in src/types/profile
 
 interface ProfileSwitcherProps {
   currentProfile: Profile | null;

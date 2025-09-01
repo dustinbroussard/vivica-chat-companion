@@ -33,6 +33,11 @@ export const SettingsModal = ({ isOpen, onClose }: SettingsModalProps) => {
     rssFeeds: DEFAULT_RSS_FEED,
     includeWeather: false,
     includeRss: false,
+    includeKeysInBackup: false,
+    showDiagnostics: false,
+    autoTitlesEnabled: true,
+    queueMessagesDuringPenalty: true,
+    fallbackModel: '',
   });
 
   useEffect(() => {
@@ -55,6 +60,9 @@ export const SettingsModal = ({ isOpen, onClose }: SettingsModalProps) => {
     localStorage.setItem('vivica-settings', JSON.stringify(settings));
     // Store Brave API key separately for easy access
     localStorage.setItem('braveApiKey', settings.braveApiKey);
+    // Diagnostics overlay toggle
+    if (settings.showDiagnostics) localStorage.setItem('vivica-show-diagnostics', '1');
+    else localStorage.removeItem('vivica-show-diagnostics');
     toast.success("Settings saved successfully!");
     onClose();
   };
@@ -160,6 +168,17 @@ export const SettingsModal = ({ isOpen, onClose }: SettingsModalProps) => {
             </div>
           </div>
 
+          {/* Fallback Model */}
+          <div className="space-y-2">
+            <Label className="text-base font-semibold">Fallback Model (optional)</Label>
+            <p className="text-xs text-muted-foreground">Used automatically if the active model is unstable.</p>
+            <Input
+              placeholder="e.g., gpt-4o-mini"
+              value={settings.fallbackModel}
+              onChange={(e) => setSettings(prev => ({ ...prev, fallbackModel: e.target.value }))}
+            />
+          </div>
+
           {/* RSS Feeds Section */}
           <div className="space-y-4">
             <Label className="text-base font-semibold">Custom RSS Feeds</Label>
@@ -174,6 +193,16 @@ export const SettingsModal = ({ isOpen, onClose }: SettingsModalProps) => {
 
           {/* Checkboxes */}
           <div className="space-y-3">
+            <div className="flex items-center space-x-2">
+              <Checkbox
+                id="auto-titles"
+                checked={settings.autoTitlesEnabled}
+                onCheckedChange={(checked) =>
+                  setSettings(prev => ({ ...prev, autoTitlesEnabled: checked as boolean }))
+                }
+              />
+              <Label htmlFor="auto-titles">Auto-generate conversation titles</Label>
+            </div>
             <div className="flex items-center space-x-2">
               <Checkbox
                 id="include-weather"
@@ -193,6 +222,36 @@ export const SettingsModal = ({ isOpen, onClose }: SettingsModalProps) => {
                 }
               />
               <Label htmlFor="include-rss">Include RSS feeds in context</Label>
+            </div>
+            <div className="flex items-center space-x-2">
+              <Checkbox
+                id="include-keys"
+                checked={settings.includeKeysInBackup}
+                onCheckedChange={(checked) =>
+                  setSettings(prev => ({ ...prev, includeKeysInBackup: checked as boolean }))
+                }
+              />
+              <Label htmlFor="include-keys">Include API keys in backups (not recommended)</Label>
+            </div>
+            <div className="flex items-center space-x-2">
+              <Checkbox
+                id="show-diagnostics"
+                checked={settings.showDiagnostics}
+                onCheckedChange={(checked) =>
+                  setSettings(prev => ({ ...prev, showDiagnostics: checked as boolean }))
+                }
+              />
+              <Label htmlFor="show-diagnostics">Show diagnostics overlay</Label>
+            </div>
+            <div className="flex items-center space-x-2">
+              <Checkbox
+                id="queue-penalty"
+                checked={settings.queueMessagesDuringPenalty}
+                onCheckedChange={(checked) =>
+                  setSettings(prev => ({ ...prev, queueMessagesDuringPenalty: checked as boolean }))
+                }
+              />
+              <Label htmlFor="queue-penalty">Queue messages during rate limit cooldown</Label>
             </div>
           </div>
 

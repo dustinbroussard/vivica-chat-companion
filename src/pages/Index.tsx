@@ -12,7 +12,7 @@ import { ChatService, ChatMessage } from "@/services/chatService";
 import { searchBrave, BRAVE_SEARCH_TOOL, formatBraveResults } from "@/services/searchService";
 import { Storage, STORAGE_KEYS } from "@/utils/storage";
 import { fetchRSSHeadlines } from "@/services/rssService";
-import { getMemories, saveConversationMemory } from "@/utils/memoryUtils";
+import { getMemories, saveConversationMemory, saveMemory } from "@/utils/memoryUtils";
 import {
   getAllConversationsFromDb,
   saveConversationsToDb,
@@ -20,6 +20,7 @@ import {
   ConversationEntry,
 } from "@/utils/indexedDb";
 import { useTheme, ThemeColor, ThemeVariant } from "@/hooks/useTheme";
+import type { Profile } from "@/types/profile";
 import { getPrimaryApiKey } from "@/utils/api";
 import { useInFlightLock } from "@/hooks/useInFlightLock";
 import { trimHistory } from "@/utils/trimHistory";
@@ -79,20 +80,7 @@ interface Conversation {
   autoTitled?: boolean;
 }
 
-interface Profile {
-  id: string;
-  name: string;
-  model: string;
-  codeModel?: string;
-  systemPrompt: string;
-  temperature: number;
-  maxTokens: number;
-  isVivica?: boolean;
-  useProfileTheme?: boolean;
-  themeColor?: ThemeColor;
-  themeVariant?: ThemeVariant;
-  [key: string]: unknown; // Add index signature for console.log compatibility
-}
+// Profile type centralized in src/types/profile
 
 const Index = () => {
   console.log("Index component rendering...");
@@ -106,6 +94,8 @@ const Index = () => {
   const [showProfiles, setShowProfiles] = useState(false);
   const [showMemory, setShowMemory] = useState(false);
   const [editingMessage, setEditingMessage] = useState<Message | null>(null);
+  const queueRef = useRef<string[]>([]);
+  const [queueActive, setQueueActive] = useState(false);
   const chatBodyRef = useRef<HTMLDivElement>(null);
   // Debounce auto-title generation to reduce extra LLM calls
   const titleTimersRef = useRef<Record<string, number>>({});
@@ -265,6 +255,25 @@ const Index = () => {
     toast.success("New conversation started!");
   }, [setConversations, setCurrentConversation, setSidebarOpen]);
 
+  const flushQueue = useCallback(async () => {
+    if (queueActive) return;
+    if (!queueRef.current.length) return;
+    setQueueActive(true);
+    try {
+      while (queueRef.current.length) {
+        if (ChatService.isPenalized()) {
+          await new Promise(r => setTimeout(r, Math.max(1000, ChatService.penaltyRemaining() + 300)));
+        }
+        const next = queueRef.current.shift();
+        if (!next) break;
+        await handleSendMessage(next);
+        await new Promise(r => setTimeout(r, 400));
+      }
+    } finally {
+      setQueueActive(false);
+    }
+  }, [queueActive]);
+
   const loadConversations = useCallback(async () => {
     const savedCurrent = localStorage.getItem('vivica-current-conversation');
     let convs: ConversationEntry[] = await getAllConversationsFromDb();
@@ -362,29 +371,25 @@ const Index = () => {
 
     const profileId = Storage.get('vivica-current-profile', '');
     const memoryKeyPrefix = 'vivica-memory';
-    const parts: Record<string, unknown>[] = [];
+    const parts: Array<Record<string, any>> = [];
 
-    // Safely get memory from storage with validation
+    // Safely get memory objects from storage without double-parsing
     const getValidatedMemory = (key: string) => {
       try {
-        const memory = Storage.get(key, null);
-        return typeof memory === 'object' ? memory : null;
+        const memory = Storage.get<Record<string, any> | null>(key, null);
+        return memory && typeof memory === 'object' ? memory : null;
       } catch {
         return null;
       }
     };
 
     const globalMem = getValidatedMemory(`${memoryKeyPrefix}-global`);
-    const profileMem = profileId 
-      ? getValidatedMemory(`${memoryKeyPrefix}-profile-${profileId}`) 
+    const profileMem = profileId
+      ? getValidatedMemory(`${memoryKeyPrefix}-profile-${profileId}`)
       : null;
 
-    if (globalMem) {
-      try { parts.push(JSON.parse(globalMem)); } catch { /* ignore */ }
-    }
-    if (profileMem) {
-      try { parts.push(JSON.parse(profileMem)); } catch { /* ignore */ }
-    }
+    if (globalMem) parts.push(globalMem);
+    if (profileMem) parts.push(profileMem);
 
     // Remove any stale legacy key
     localStorage.removeItem('vivica-memory');
@@ -540,6 +545,16 @@ const Index = () => {
       return;
     }
 
+    const settings = Storage.get('vivica-settings', { queueMessagesDuringPenalty: true, fallbackModel: '' });
+    if (ChatService.isPenalized() && settings.queueMessagesDuringPenalty) {
+      queueRef.current.push(content);
+      const secs = Math.ceil(ChatService.penaltyRemaining() / 1000);
+      toast.message(`Queued message. Sending in ~${secs}s`);
+      flushQueue();
+      setIsTyping(false);
+      return;
+    }
+
     const systemPrompt = await buildSystemPrompt();
       let chatMessages: ChatMessage[] = [
         { role: 'system', content: systemPrompt },
@@ -653,14 +668,17 @@ const Index = () => {
           setCurrentConversation(finalConv);
           setConversations(prev => prev.map(conv => conv.id === conversation.id ? finalConv : conv));
 
-          if (!conversation.autoTitled) {
+          const settings = Storage.get('vivica-settings', { autoTitlesEnabled: true });
+          if (!conversation.autoTitled && settings.autoTitlesEnabled) {
             const id = finalConv.id;
             const timers = titleTimersRef.current;
             if (timers[id]) clearTimeout(timers[id]);
+            const penaltyDelay = ChatService.isPenalized() ? ChatService.penaltyRemaining() + 1000 : 0;
+            const delay = Math.max(8000, penaltyDelay || 0);
             timers[id] = window.setTimeout(() => {
               handleGenerateTitle(finalConv);
               delete titleTimersRef.current[id];
-            }, 8000);
+            }, delay);
           }
 
           setIsTyping(false);
@@ -707,7 +725,8 @@ const Index = () => {
           temperature: currentProfile.temperature,
           max_tokens: currentProfile.maxTokens,
           stream: true,
-          isCodeRequest: isCodeReq
+          isCodeRequest: isCodeReq,
+          fallbackModel: settings.fallbackModel || undefined
         });
       // TODO: if isCodeReq, send full code output to Vivica's model for a human
       // explanation before finalizing the message
@@ -777,14 +796,17 @@ const Index = () => {
         lastMessage: fullContent,
         timestamp: new Date()
       };
-      if (!conversation.autoTitled) {
+      const settings = Storage.get('vivica-settings', { autoTitlesEnabled: true });
+      if (!conversation.autoTitled && settings.autoTitlesEnabled) {
         const id = finalConv.id;
         const timers = titleTimersRef.current;
         if (timers[id]) clearTimeout(timers[id]);
+        const penaltyDelay = ChatService.isPenalized() ? ChatService.penaltyRemaining() + 1000 : 0;
+        const delay = Math.max(8000, penaltyDelay || 0);
         timers[id] = window.setTimeout(() => {
           handleGenerateTitle(finalConv);
           delete titleTimersRef.current[id];
-        }, 8000);
+        }, delay);
       }
     } catch (error) {
       const failedMessage: Message = {
@@ -808,7 +830,8 @@ const Index = () => {
         conv.id === conversation.id ? errorConversation : conv
       ));
 
-      toast.error('Failed to get AI response. Please try again.');
+      const emsg = (error instanceof Error && error.message) ? error.message : 'Failed to get AI response. Please try again.';
+      toast.error(emsg);
     }
   } finally {
     setIsTyping(false);
@@ -881,6 +904,31 @@ const Index = () => {
 
   const handleStartEditMessage = (message: Message) => {
     setEditingMessage(message);
+  };
+
+  // New message action handlers
+  const handlePinMessage = (id: string, pinned: boolean) => {
+    if (!currentConversation) return;
+    const updated = {
+      ...currentConversation,
+      messages: currentConversation.messages.map(m => m.id === id ? { ...m, pinned } : m),
+    };
+    setCurrentConversation(updated);
+    setConversations(prev => prev.map(c => c.id === updated.id ? updated : c));
+  };
+
+  const handleSaveMessageToMemory = async (content: string, scope: 'global' | 'profile' = 'profile') => {
+    try {
+      await saveMemory(content, scope, currentProfile?.id);
+      toast.success('Saved to memory');
+    } catch (e) {
+      toast.error('Failed to save to memory');
+    }
+  };
+
+  const handleSummarizeSnippet = (content: string) => {
+    const prompt = `Summarize the following text in 3-5 bullet points. Be concise.\n\n${content}`;
+    handleSendMessage(prompt);
   };
 
 
@@ -1058,6 +1106,9 @@ const Index = () => {
           onEditMessage={handleStartEditMessage}
           onSendMessage={handleSendMessage}
           onNewChat={handleNewChat}
+          onPinMessage={handlePinMessage}
+          onSaveToMemory={handleSaveMessageToMemory}
+          onSummarize={handleSummarizeSnippet}
         />
 
         <ScrollToBottomButton

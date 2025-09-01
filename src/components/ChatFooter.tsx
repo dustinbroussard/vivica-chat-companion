@@ -1,8 +1,9 @@
 
 import { useState, useRef, useEffect } from "react";
-import { Send } from "lucide-react";
+import { Send, Clock } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
+import { ChatService } from "@/services/chatService";
 
 interface ChatFooterProps {
   onSendMessage: (message: string) => void;
@@ -12,6 +13,7 @@ interface ChatFooterProps {
 export const ChatFooter = ({ onSendMessage, editingMessage }: ChatFooterProps) => {
   const [message, setMessage] = useState("");
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const [cooldownMs, setCooldownMs] = useState(0);
 
   useEffect(() => {
     if (editingMessage !== undefined) {
@@ -44,9 +46,25 @@ export const ChatFooter = ({ onSendMessage, editingMessage }: ChatFooterProps) =
     }
   }, [message]);
 
+  // Poll for global rate-limit cooldown remaining
+  useEffect(() => {
+    const update = () => {
+      setCooldownMs(ChatService.isPenalized() ? ChatService.penaltyRemaining() : 0);
+    };
+    update();
+    const id = setInterval(update, 1000);
+    return () => clearInterval(id);
+  }, []);
+
   return (
     <footer className="border-t border-border bg-card/50 backdrop-blur-sm p-4">
       <div className="max-w-4xl mx-auto">
+        {cooldownMs > 0 && (
+          <div className="mb-2 text-xs text-muted-foreground flex items-center gap-2">
+            <Clock className="w-3 h-3" />
+            Cooling down to avoid rate limits — {Math.ceil(cooldownMs / 1000)}s
+          </div>
+        )}
         {editingMessage && (
           <div className="text-xs text-muted-foreground mb-2">Editing previous message</div>
         )}

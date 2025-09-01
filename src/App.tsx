@@ -6,6 +6,7 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { ThemeProvider } from "@/hooks/ThemeProvider";
 import InstallPrompt from "./components/InstallPrompt";
 import { Suspense, lazy } from "react";
+import { Diagnostics } from "@/components/Diagnostics";
 
 const Index = lazy(() => import("./pages/Index"));
 const NotFound = lazy(() => import("./pages/NotFound"));
@@ -26,6 +27,7 @@ const AppContent = () => {
       <Toaster />
       <Sonner />
       <InstallPrompt />
+      <Diagnostics />
       <BrowserRouter future={routerFutureFlags}>
         <Suspense fallback={<div />}>
           <Routes>

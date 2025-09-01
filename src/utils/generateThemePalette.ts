@@ -66,13 +66,7 @@ const fallbackPalette = (mood: string): DualThemePalette => {
   return { light: buildPalette(base), dark: buildPalette(base) };
 };
 
-interface Profile {
-  id: string;
-  model: string;
-  temperature: number;
-  maxTokens: number;
-  codeModel?: string;
-}
+import type { Profile } from '@/types/profile';
 
 export async function generateThemePalette(mood: string): Promise<DualThemePalette> {
   try {

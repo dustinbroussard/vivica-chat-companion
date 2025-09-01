@@ -38,8 +38,13 @@ export const useOpenRouterChat = ({ apiKey }: UseOpenRouterChatProps = {}) => {
       };
       const response = await chatService.sendMessage(request);
 
-      for await (const token of chatService.streamResponse(response, request)) {
-        onToken(token);
+      for await (const chunk of chatService.streamResponse(response, request)) {
+        // streamResponse can yield a start signal, or string/content objects.
+        if (typeof chunk === 'string') {
+          onToken(chunk);
+        } else if ('content' in chunk && typeof chunk.content === 'string') {
+          onToken(chunk.content);
+        } // ignore 'stream_start' metadata here
       }
 
       onComplete();

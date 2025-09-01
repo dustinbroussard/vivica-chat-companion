@@ -108,13 +108,32 @@ export class ChatService {
 
   // Simple pacer to avoid bursty requests across the app
   private static lastRequestAt = 0;
-  private static MIN_INTERVAL_MS = 300; // ~3 req/s
+  private static MIN_INTERVAL_MS = 600; // ~1.6 req/s baseline
+  // Adaptive penalty after rate limits
+  private static penaltyUntil = 0;
+  private static penaltyIntervalMs = 0;
   private static async pace() {
     const now = Date.now();
-    const wait = ChatService.lastRequestAt + ChatService.MIN_INTERVAL_MS - now;
+    // Apply adaptive penalty window if active
+    const interval = (ChatService.penaltyUntil > now)
+      ? Math.max(ChatService.MIN_INTERVAL_MS, ChatService.penaltyIntervalMs || 1200)
+      : ChatService.MIN_INTERVAL_MS;
+    if (ChatService.penaltyUntil <= now) {
+      ChatService.penaltyIntervalMs = 0;
+    }
+    const wait = ChatService.lastRequestAt + interval - now;
     if (wait > 0) await new Promise(r => setTimeout(r, wait));
     ChatService.lastRequestAt = Date.now();
   }
+  private static setGlobalPenalty(ms?: number) {
+    const now = Date.now();
+    const extra = Math.min(Math.max(ms ?? 60_000, 15_000), 5 * 60_000); // 15s–5m
+    ChatService.penaltyUntil = now + extra;
+    // During penalty, space requests more aggressively
+    ChatService.penaltyIntervalMs = Math.max(ChatService.penaltyIntervalMs, 1500);
+  }
+  static isPenalized() { return Date.now() < ChatService.penaltyUntil; }
+  static penaltyRemaining() { return Math.max(0, ChatService.penaltyUntil - Date.now()); }
 
   constructor(apiKey: string, apiUrl?: string) {
     if (!apiKey) throw new Error('API key is required');
@@ -237,6 +256,17 @@ export class ChatService {
     ChatService.CIRCUIT[model] = { failures: 0 };
   }
 
+  static getModelHealth(model: string) {
+    const s = ChatService.CIRCUIT[model];
+    if (s?.openUntil && s.openUntil > Date.now()) {
+      return { state: 'open' as const, failures: s.failures };
+    }
+    if (s?.failures && s.failures > 0) {
+      return { state: 'degraded' as const, failures: s.failures };
+    }
+    return { state: 'ok' as const, failures: 0 };
+  }
+
   private async trySendWithKey(
     request: ChatRequest,
     apiKey: string,
@@ -263,24 +293,34 @@ export class ChatService {
       try {
         // Global pacer: keep a minimum gap between requests
         await ChatService.pace();
+        // Emit request diagnostics
+        try {
+          window.dispatchEvent(new CustomEvent('ai:request', { detail: { rid, model: request.model, endpoint } }));
+        } catch {}
         const resp = await fetch(endpoint, {
           method: 'POST',
           headers,
           body: JSON.stringify(request),
           signal: controller.signal,
         });
-        const clone = resp.clone();
-        const text = await clone.text().catch(() => '');
+        // Only read body for logging on non-stream responses; avoid blocking streams
+        let sample = '';
         if (!resp.ok) {
+          const text = await resp.clone().text().catch(() => '');
           throw statusFromResponse(resp, text);
+        } else if (!request.stream) {
+          sample = await resp.clone().text().catch(() => '');
         }
         const elapsed = Math.round(Date.now() - start);
         console.log('[AI][recv]', {
           rid,
           status: resp.status,
           elapsed,
-          sample: text.slice(0, 200),
+          sample: sample.slice(0, 200),
         });
+        try {
+          window.dispatchEvent(new CustomEvent('ai:response', { detail: { rid, status: resp.status, elapsed } }));
+        } catch {}
         return resp;
       } finally {
         clearTimeout(timer);
@@ -428,6 +468,7 @@ export class ChatService {
         if (kind === 'rate_limit') {
           const ra = (error as { retryAfterMs?: number }).retryAfterMs;
           ChatService.setCooldown(key, ra && ra > 0 ? ra : 60_000);
+          ChatService.setGlobalPenalty(ra);
         } else if (kind === 'server' || kind === 'network') {
           ChatService.setCooldown(key, 3 * 60_000);
         } else if (kind === 'unauthorized') {
@@ -452,6 +493,11 @@ export class ChatService {
     })();
 
     console.error('OpenRouter API failed after all attempts:', errorMsg, rid);
+    try {
+      const kind = classify(lastError);
+      const ra = (lastError as { retryAfterMs?: number }).retryAfterMs;
+      window.dispatchEvent(new CustomEvent('ai:error', { detail: { rid, kind, retryAfterMs: ra } }));
+    } catch {}
     const err = new Error(`${errorMsg} (Request ID: ${rid})`) as Error & { rid?: string };
     err.rid = rid;
     throw err;

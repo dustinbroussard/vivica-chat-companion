@@ -49,6 +49,9 @@ interface Message {
   failed?: boolean;
   isCodeResponse?: boolean;
   codeLoading?: boolean;
+  /** Which profile produced this message (for badges) */
+  profileId?: string;
+  pinned?: boolean;
 }
 
 interface Conversation {
@@ -77,13 +80,16 @@ interface ChatBodyProps {
   onEditMessage?: (message: Message) => void;
   onSendMessage: (content: string) => void;
   onNewChat: () => void;
+  onPinMessage?: (id: string, pinned: boolean) => void;
+  onSaveToMemory?: (content: string, scope: 'global' | 'profile') => void;
+  onSummarize?: (content: string) => void;
 }
 
 export const ChatBody = forwardRef<HTMLDivElement, ChatBodyProps>(
-  ({ conversation, currentProfile, isTyping, onRetryMessage, onRegenerateMessage, onEditMessage, onSendMessage, onNewChat }, ref) => {
+  ({ conversation, currentProfile, isTyping, onRetryMessage, onRegenerateMessage, onEditMessage, onSendMessage, onNewChat, onPinMessage, onSaveToMemory, onSummarize }, ref) => {
     const messagesEndRef = useRef<HTMLDivElement>(null);
     const { color, variant } = useTheme();
-    const logoSrc = `/logo-${color === 'ai-choice' ? 'default' : color}${variant}.png`;
+    const logoSrc = `/logo-${color}${variant}.png`;
     const [welcomeMsg, setWelcomeMsg] = useState('');
     const [welcomeError, setWelcomeError] = useState(false);
     const [animateWelcome, setAnimateWelcome] = useState(false);
@@ -121,6 +127,16 @@ export const ChatBody = forwardRef<HTMLDivElement, ChatBodyProps>(
         }
 
         const chatService = new ChatService(apiKey);
+        // If rate-limited recently, avoid another welcome call
+        if (ChatService.isPenalized()) {
+          const cached = JSON.parse(localStorage.getItem('vivica-welcome-cache') || 'null');
+          if (cached?.text) {
+            lastWelcomeRef.current = cached.text;
+            setWelcomeMsg(cached.text);
+            setAnimateWelcome(true);
+            return;
+          }
+        }
         const systemPrompt = vivica.systemPrompt;
         const prompt = `${systemPrompt}\n\nVivica, write a short, snarky, surprising welcome message (max 120 characters). Speak in your own voice. Never mention AI or 'assistant.' Only return the message text—no extra formatting, no meta statements, no greetings like 'Welcome.' Do not repeat the previous message.`;
 
@@ -225,7 +241,7 @@ export const ChatBody = forwardRef<HTMLDivElement, ChatBodyProps>(
           // Empty state
           <div className="flex flex-col items-center justify-center h-full text-center space-y-8 max-w-2xl mx-auto -mt-8">
             <div className="space-y-4">
-              <img src={logoSrc} alt="Vivica" className="w-40 h-40 mx-auto" />
+              <img src={logoSrc} alt="Vivica" className="w-40 h-40 mx-auto" onError={(e) => { (e.target as HTMLImageElement).src = `/logo-default${variant}.png`; }} />
               <h2 className="text-3xl font-bold">Welcome to Vivica</h2>
               <p
                 onClick={() => welcomeError && fetchWelcome()}
@@ -280,13 +296,13 @@ export const ChatBody = forwardRef<HTMLDivElement, ChatBodyProps>(
                       message.failed ? 'border-accent/50 bg-accent/10' : ''
                     } px-3 py-2 rounded-[2rem] max-w-[95vw] sm:max-w-2xl break-words ${
                       message.role === 'user'
-                        ? 'rounded-br-none ml-6 mr-2000'
+                        ? 'rounded-br-none ml-6 mr-6'
                         : 'rounded-bl-none mr-6 ml-6'
                     } ${
                       index === conversation?.messages.length - 1 ? 'glow-once' : ''
                     }`}
                   >
-                    <div className="prose break-words max-w-none text-sm leading-snug">
+                  <div className="prose break-words max-w-none text-sm leading-snug">
                       <ReactMarkdown
                         remarkPlugins={[remarkGfm]}
                         components={{
@@ -323,21 +339,24 @@ export const ChatBody = forwardRef<HTMLDivElement, ChatBodyProps>(
                               JSON.stringify(message.content))
                         }
                       </ReactMarkdown>
-                      {message.codeLoading && <CodeBlockLoader />}
-                    </div>
-                    
-                    <div className="flex items-center justify-between mt-2 gap-2">
-                      <div className={`flex items-center gap-2 text-xs opacity-60 ${
-                        message.role === 'user' ? 'text-right' : 'text-left'
-                      }`}>
-                        {message.isCodeResponse && (
-                          <span className="inline-block w-2 h-2 rounded-full bg-blue-500/70" 
-                                title="Code response" />
-                        )}
-                        {message.failed && (
-                          <span className="text-red-500/80" title="Failed message">⚠️</span>
-                        )}
-                        {formatTimestamp(message.timestamp)}
+                    {message.codeLoading && <CodeBlockLoader />}
+                  </div>
+                  
+                  <div className="flex items-center justify-between mt-2 gap-2">
+                    <div className={`flex items-center gap-2 text-xs opacity-60 ${
+                      message.role === 'user' ? 'text-right' : 'text-left'
+                    }`}>
+                      {message.pinned && (
+                        <span className="inline-block w-2 h-2 rounded-full bg-yellow-500/80" title="Pinned" />
+                      )}
+                      {message.isCodeResponse && (
+                        <span className="inline-block w-2 h-2 rounded-full bg-blue-500/70" 
+                              title="Code response" />
+                      )}
+                      {message.failed && (
+                        <span className="text-red-500/80" title="Failed message">⚠️</span>
+                      )}
+                      {formatTimestamp(message.timestamp)}
                         {message.profileId !== currentProfile?.id && (
                           <span className="px-1 py-0.5 rounded text-xxs bg-muted/50">
                             {getProfileName(message.profileId)}
@@ -360,6 +379,50 @@ export const ChatBody = forwardRef<HTMLDivElement, ChatBodyProps>(
                         >
                           <Copy className="w-3 h-3" />
                         </Button>
+
+                        {/* Pin toggle */}
+                        {onPinMessage && (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => onPinMessage(message.id, !message.pinned)}
+                            className="h-6 w-6 p-0"
+                            title={message.pinned ? 'Unpin' : 'Pin'}
+                          >
+                            <span className="w-3 h-3">📌</span>
+                          </Button>
+                        )}
+
+                        {/* Save to memory */}
+                        {onSaveToMemory && (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => onSaveToMemory(
+                              typeof message.content === 'string' ? message.content : JSON.stringify(message.content),
+                              'profile'
+                            )}
+                            className="h-6 w-6 p-0"
+                            title="Save to Memory"
+                          >
+                            <span className="w-3 h-3">🧠</span>
+                          </Button>
+                        )}
+
+                        {/* Summarize this snippet */}
+                        {onSummarize && (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => onSummarize(
+                              typeof message.content === 'string' ? message.content : JSON.stringify(message.content)
+                            )}
+                            className="h-6 w-6 p-0"
+                            title="Summarize this"
+                          >
+                            <span className="w-3 h-3">✨</span>
+                          </Button>
+                        )}
 
                         {message.role === 'user' && onEditMessage && (
                           (() => {

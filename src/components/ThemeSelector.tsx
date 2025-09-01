@@ -30,7 +30,6 @@ export const ThemeSelector = () => {
     { value: 'purple', label: 'Purple', color: '#8b5cf6' },
     { value: 'mardi-gold', label: 'Mardi Gold', color: '#d4bd8c' },
     { value: 'mardi-gras', label: 'Mardi Gras', color: '#840099' },
-    { value: 'ai-choice', label: 'AI Choice', color: '#ffffff' },
   ];
 
   return (
@@ -91,7 +90,7 @@ export const ThemeSelector = () => {
       </div>
 
       <p className="text-sm text-muted-foreground">
-        Current: {themeOptions.find(t => t.value === color)?.label} {variant === 'dark' ? 'Dark' : 'Light'}
+        Current: {themeOptions.find(t => t.value === color)?.label || 'Default'} {variant === 'dark' ? 'Dark' : 'Light'}
       </p>
     </div>
   );

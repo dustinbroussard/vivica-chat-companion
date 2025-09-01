@@ -15,13 +15,14 @@ export const ThemeProvider = ({ children }: { children: React.ReactNode }) => {
   }, []);
 
   useEffect(() => {
-    const themeAttr = `${color === 'ai-choice' ? 'default' : color}-${variant}`;
+    const themeAttr = `${color}-${variant}`;
     document.documentElement.setAttribute('data-theme', themeAttr);
     document.documentElement.classList.toggle('dark', variant === 'dark');
     DebouncedStorage.set(STORAGE_KEYS.THEME, { color, variant }, 300);
   }, [color, variant]);
 
-  useDynamicTheme(currentMood, variant, color === 'ai-choice');
+  // AI-driven dynamic theme disabled (removed AI Choice mode)
+  useDynamicTheme(currentMood, variant, false);
 
   const toggleVariant = () => {
     setVariant(variant === 'dark' ? 'light' : 'dark');

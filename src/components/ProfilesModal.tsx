@@ -24,20 +24,9 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import type { ThemeColor, ThemeVariant } from "@/hooks/useTheme";
+import type { Profile } from "@/types/profile";
 
-interface Profile {
-  id: string;
-  name: string;
-  model: string;
-  codeModel?: string;
-  systemPrompt: string;
-  temperature: number;
-  maxTokens: number;
-  isVivica?: boolean;
-   useProfileTheme?: boolean;
-   themeColor?: ThemeColor;
-   themeVariant?: ThemeVariant;
-}
+// Profile type centralized in src/types/profile
 
 interface ProfilesModalProps {
   isOpen: boolean;
@@ -65,7 +54,6 @@ export const ProfilesModal = ({ isOpen, onClose }: ProfilesModalProps) => {
     { value: 'green', label: 'Green', color: '#10b981' },
     { value: 'purple', label: 'Purple', color: '#8b5cf6' },
     { value: 'mardi-gras', label: 'Mardi Gras', color: '#6366f1' },
-    { value: 'ai-choice', label: 'AI Choice', color: '#ffffff' },
   ];
 
   useEffect(() => {

@@ -796,6 +796,8 @@ const Index = () => {
         lastMessage: fullContent,
         timestamp: new Date()
       };
+      setCurrentConversation(finalConv);
+      setConversations(prev => prev.map(conv => conv.id === conversation.id ? finalConv : conv));
       const settings = Storage.get('vivica-settings', { autoTitlesEnabled: true });
       if (!conversation.autoTitled && settings.autoTitlesEnabled) {
         const id = finalConv.id;
@@ -846,7 +848,7 @@ const Index = () => {
     if (messageIndex > 0) {
       const userMessage = currentConversation.messages[messageIndex - 1];
       if (userMessage.role === 'user') {
-        const updatedMessages = currentConversation.messages.slice(0, messageIndex);
+        const updatedMessages = currentConversation.messages.slice(0, messageIndex - 1);
         const updatedConversation = {
           ...currentConversation,
           messages: updatedMessages
@@ -868,7 +870,7 @@ const Index = () => {
     if (messageIndex > 0) {
       const userMessage = currentConversation.messages[messageIndex - 1];
       if (userMessage.role === 'user') {
-        const updatedMessages = currentConversation.messages.slice(0, messageIndex);
+        const updatedMessages = currentConversation.messages.slice(0, messageIndex - 1);
         const updatedConversation = {
           ...currentConversation,
           messages: updatedMessages

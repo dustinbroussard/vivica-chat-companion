@@ -7,7 +7,8 @@ import { CodeBlock } from "./CodeBlock";
 import { CodeBlockLoader } from "./CodeBlockLoader";
 import { ThinkingIndicator } from "./ThinkingIndicator";
 import { Button } from "@/components/ui/button";
-import { FaUser, FaRobot } from "react-icons/fa";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import { faUser, faRobot } from "@fortawesome/free-solid-svg-icons";
 import { useTheme } from "@/hooks/useTheme";
 import { toast } from "sonner";
 import { WeatherWidget } from "@/components/WeatherWidget";
@@ -273,14 +274,14 @@ export const ChatBody = forwardRef<HTMLDivElement, ChatBodyProps>(
                 >
                   {message.role === 'assistant' ? (
                     <>
-                      <FaRobot className="w-4 h-4" />
+                      <FontAwesomeIcon icon={faRobot} className="w-4 h-4" />
                       <span className="font-medium text-xs text-muted-foreground">
                         {getProfileName(message.profileId)}
                       </span>
                     </>
                   ) : (
                     <>
-                      <FaUser className="w-4 h-4" />
+                      <FontAwesomeIcon icon={faUser} className="w-4 h-4" />
                       <span className="font-medium text-xs text-muted-foreground">
                         {getUserName()}
                       </span>
@@ -443,17 +444,15 @@ export const ChatBody = forwardRef<HTMLDivElement, ChatBodyProps>(
                           })()
                         )}
 
-                        {message.role === 'assistant' && onRegenerateMessage && (
-                          index === conversation?.messages.length - 1 ? (
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => onRegenerateMessage(message.id)}
-                              className="h-6 w-6 p-0"
-                            >
-                              <RotateCcw className="w-3 h-3" />
-                            </Button>
-                          ) : null
+                        {message.role === 'assistant' && index === conversation?.messages.length - 1 && !message.failed && onRegenerateMessage && (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => onRegenerateMessage(message.id)}
+                            className="h-6 w-6 p-0"
+                          >
+                            <RotateCcw className="w-3 h-3" />
+                          </Button>
                         )}
 
                         {message.failed && onRetryMessage && (

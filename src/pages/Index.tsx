@@ -24,6 +24,7 @@ import type { Profile } from "@/types/profile";
 import { getPrimaryApiKey } from "@/utils/api";
 import { useInFlightLock } from "@/hooks/useInFlightLock";
 import { trimHistory } from "@/utils/trimHistory";
+import { sendChat } from "@/api/chat";
 
 function weatherCodeToText(code: number): string {
   const map: Record<number, string> = {
@@ -539,14 +540,10 @@ const Index = () => {
     setIsTyping(true);
 
     const apiKey = getPrimaryApiKey();
-    if (!apiKey) {
-      toast.error('Please set your OpenRouter API key in Settings.');
-      setIsTyping(false);
-      return;
-    }
+    const useServer = !apiKey;
 
     const settings = Storage.get('vivica-settings', { queueMessagesDuringPenalty: true, fallbackModel: '' });
-    if (ChatService.isPenalized() && settings.queueMessagesDuringPenalty) {
+    if (!useServer && ChatService.isPenalized() && settings.queueMessagesDuringPenalty) {
       queueRef.current.push(content);
       const secs = Math.ceil(ChatService.penaltyRemaining() / 1000);
       toast.message(`Queued message. Sending in ~${secs}s`);
@@ -612,9 +609,9 @@ const Index = () => {
     }
 
     const braveKey = localStorage.getItem('braveApiKey');
-    const chatService = new ChatService(apiKey);
+    const chatService = apiKey ? new ChatService(apiKey) : undefined;
 
-    if (!searchMatch && braveKey) {
+    if (chatService && !searchMatch && braveKey) {
       try {
         const first = await chatService.sendMessageJson({
           model: currentProfile.model,
@@ -716,6 +713,50 @@ const Index = () => {
     setConversations(prev => prev.map(conv =>
       conv.id === conversation.id ? streamingConversation : conv
     ));
+
+    if (!chatService) {
+      try {
+        const data = await sendChat({
+          model: currentProfile.model,
+          messages: trimHistory(chatMessages),
+          temperature: currentProfile.temperature,
+          max_tokens: currentProfile.maxTokens,
+        });
+        const finalContent = data.choices?.[0]?.message?.content || '';
+        const finalMsg: Message = {
+          id: assistantMessage.id,
+          content: finalContent,
+          role: 'assistant',
+          timestamp: new Date(),
+          profileId: currentProfile.id,
+        };
+        const finalConv: Conversation = {
+          ...updatedConversation,
+          messages: [...updatedConversation.messages, finalMsg],
+          lastMessage: finalContent,
+          timestamp: new Date(),
+        };
+        setCurrentConversation(finalConv);
+        setConversations(prev => prev.map(conv => conv.id === conversation.id ? finalConv : conv));
+        const s = Storage.get('vivica-settings', { autoTitlesEnabled: true });
+        if (!conversation.autoTitled && s.autoTitlesEnabled) {
+          const id = finalConv.id;
+          const timers = titleTimersRef.current;
+          if (timers[id]) clearTimeout(timers[id]);
+          const penaltyDelay = ChatService.isPenalized() ? ChatService.penaltyRemaining() + 1000 : 0;
+          const delay = Math.max(8000, penaltyDelay || 0);
+          timers[id] = window.setTimeout(() => {
+            handleGenerateTitle(finalConv);
+            delete titleTimersRef.current[id];
+          }, delay);
+        }
+      } catch {
+        toast.error('Failed to send message.');
+      } finally {
+        setIsTyping(false);
+      }
+      return;
+    }
 
       try {
         const isCodeReq = /```|\bcode\b|function|programming/i.test(content);

@@ -17,3 +17,19 @@ test('callLLM retries once on 429', async () => {
   assert.deepEqual(res.choices.length, 0);
   global.fetch = orig as typeof fetch;
 });
+
+test('callLLM retries on network error', async () => {
+  let calls = 0;
+  const orig = global.fetch;
+  global.fetch = async () => {
+    calls++;
+    if (calls === 1) {
+      throw new Error('network');
+    }
+    return { status: 200, ok: true, json: async () => ({ choices: [] }) } as unknown as Response;
+  };
+  const res = await callLLM({ messages: [{ role: 'user', content: 'hi' }], model: 'test2', signal: new AbortController().signal, requestId: 'y' });
+  assert.equal(calls, 2);
+  assert.deepEqual(res.choices.length, 0);
+  global.fetch = orig as typeof fetch;
+});

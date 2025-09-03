@@ -3,7 +3,7 @@ const CACHE_TTL = 60_000;
 
 export async function callLLM({
   messages, model, signal, maxTokens = 512,
-  retry = 1, requestId
+  retry = 2, requestId
 }: {
   messages: Array<{role:string; content:string}>;
   model: string;
@@ -35,7 +35,7 @@ export async function callLLM({
 
       if (res.status === 429 || res.status >= 500) {
         if (attempt < retry) {
-          const backoff = Math.min(2000 * (attempt + 1) + Math.random() * 400, 6000);
+          const backoff = Math.min(500 * 2 ** attempt + Math.random() * 500, 4000);
           await new Promise(r => setTimeout(r, backoff));
           continue;
         }
@@ -49,6 +49,8 @@ export async function callLLM({
       return json;
     } catch (e) {
       if (attempt >= retry) throw e;
+      const backoff = Math.min(500 * 2 ** attempt + Math.random() * 500, 4000);
+      await new Promise(r => setTimeout(r, backoff));
     }
   }
 }

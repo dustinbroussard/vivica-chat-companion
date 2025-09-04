@@ -510,6 +510,7 @@ const Index = () => {
     const conversation = baseConv || currentConversation;
     if (!conversation || !content.trim() || !currentProfile) return;
     if (!flight.lock()) return;
+    let assistantMessage: Message | undefined;
     try {
       // Check for a /search command before routing the message to the LLM
       const searchMatch = content.trim().match(/^\/search\s+(.*)/i);
@@ -693,7 +694,7 @@ const Index = () => {
       }
     }
 
-    const assistantMessage: Message = {
+    assistantMessage = {
       id: (Date.now() + 1).toString(),
       content: '',
       role: 'assistant',
@@ -853,7 +854,7 @@ const Index = () => {
       }
     } catch (error) {
       const failedMessage: Message = {
-        id: assistantMessage.id,
+        id: assistantMessage?.id || Date.now().toString(),
         content: 'Sorry, I encountered an error. Please try again.',
         role: 'assistant',
         timestamp: new Date(),
@@ -884,43 +885,15 @@ const Index = () => {
 
   const handleRetryMessage = (messageId: string) => {
     if (!currentConversation) return;
-    
-    const messageIndex = currentConversation.messages.findIndex(msg => msg.id === messageId);
+
+    const messageIndex = currentConversation.messages.findIndex((msg) => msg.id === messageId);
     if (messageIndex > 0) {
       const userMessage = currentConversation.messages[messageIndex - 1];
       if (userMessage.role === 'user') {
-        const updatedMessages = currentConversation.messages.slice(0, messageIndex - 1);
         const updatedConversation = {
           ...currentConversation,
-          messages: updatedMessages
+          messages: currentConversation.messages.slice(0, messageIndex - 1),
         };
-        setCurrentConversation(updatedConversation);
-        setConversations(prev => prev.map(conv =>
-          conv.id === currentConversation.id ? updatedConversation : conv
-        ));
-
-        handleSendMessage(userMessage.content, updatedConversation);
-      }
-    }
-  };
-
-  const handleRegenerateMessage = (messageId: string) => {
-    if (!currentConversation) return;
-
-    const messageIndex = currentConversation.messages.findIndex(msg => msg.id === messageId);
-    if (messageIndex > 0) {
-      const userMessage = currentConversation.messages[messageIndex - 1];
-      if (userMessage.role === 'user') {
-        const updatedMessages = currentConversation.messages.slice(0, messageIndex - 1);
-        const updatedConversation = {
-          ...currentConversation,
-          messages: updatedMessages
-        };
-        setCurrentConversation(updatedConversation);
-        setConversations(prev => prev.map(conv =>
-          conv.id === currentConversation.id ? updatedConversation : conv
-        ));
-
         handleSendMessage(userMessage.content, updatedConversation);
       }
     }
@@ -1145,7 +1118,6 @@ const Index = () => {
           currentProfile={currentProfile}
           isTyping={isTyping}
           onRetryMessage={handleRetryMessage}
-          onRegenerateMessage={handleRegenerateMessage}
           onEditMessage={handleStartEditMessage}
           onSendMessage={handleSendMessage}
           onNewChat={handleNewChat}

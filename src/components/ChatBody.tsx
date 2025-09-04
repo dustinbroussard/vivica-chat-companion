@@ -2,13 +2,21 @@
 import { forwardRef, useEffect, useRef, useState, useCallback } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
-import { RotateCcw, Copy, Pencil } from "lucide-react";
 import { CodeBlock } from "./CodeBlock";
 import { CodeBlockLoader } from "./CodeBlockLoader";
 import { ThinkingIndicator } from "./ThinkingIndicator";
 import { Button } from "@/components/ui/button";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { faUser, faRobot } from "@fortawesome/free-solid-svg-icons";
+import {
+  faUser,
+  faRobot,
+  faCopy,
+  faThumbtack,
+  faBrain,
+  faWandMagicSparkles,
+  faPen,
+  faRotateRight,
+} from "@fortawesome/free-solid-svg-icons";
 import { useTheme } from "@/hooks/useTheme";
 import { toast } from "sonner";
 import { WeatherWidget } from "@/components/WeatherWidget";
@@ -77,7 +85,6 @@ interface ChatBodyProps {
   currentProfile?: { id: string } | null;
   isTyping: boolean;
   onRetryMessage?: (messageId: string) => void;
-  onRegenerateMessage?: (messageId: string) => void;
   onEditMessage?: (message: Message) => void;
   onSendMessage: (content: string) => void;
   onNewChat: () => void;
@@ -87,7 +94,7 @@ interface ChatBodyProps {
 }
 
 export const ChatBody = forwardRef<HTMLDivElement, ChatBodyProps>(
-  ({ conversation, currentProfile, isTyping, onRetryMessage, onRegenerateMessage, onEditMessage, onSendMessage, onNewChat, onPinMessage, onSaveToMemory, onSummarize }, ref) => {
+  ({ conversation, currentProfile, isTyping, onRetryMessage, onEditMessage, onSendMessage, onNewChat, onPinMessage, onSaveToMemory, onSummarize }, ref) => {
     const messagesEndRef = useRef<HTMLDivElement>(null);
     const { color, variant } = useTheme();
     const logoSrc = `/logo-${color}${variant}.png`;
@@ -378,7 +385,7 @@ export const ChatBody = forwardRef<HTMLDivElement, ChatBodyProps>(
                           }
                           className="h-6 w-6 p-0"
                         >
-                          <Copy className="w-3 h-3" />
+                          <FontAwesomeIcon icon={faCopy} className="w-3 h-3" />
                         </Button>
 
                         {/* Pin toggle */}
@@ -390,7 +397,7 @@ export const ChatBody = forwardRef<HTMLDivElement, ChatBodyProps>(
                             className="h-6 w-6 p-0"
                             title={message.pinned ? 'Unpin' : 'Pin'}
                           >
-                            <span className="w-3 h-3">📌</span>
+                            <FontAwesomeIcon icon={faThumbtack} className="w-3 h-3" />
                           </Button>
                         )}
 
@@ -399,14 +406,18 @@ export const ChatBody = forwardRef<HTMLDivElement, ChatBodyProps>(
                           <Button
                             variant="ghost"
                             size="sm"
-                            onClick={() => onSaveToMemory(
-                              typeof message.content === 'string' ? message.content : JSON.stringify(message.content),
-                              'profile'
-                            )}
+                            onClick={() =>
+                              onSaveToMemory(
+                                typeof message.content === 'string'
+                                  ? message.content
+                                  : JSON.stringify(message.content),
+                                'profile'
+                              )
+                            }
                             className="h-6 w-6 p-0"
                             title="Save to Memory"
                           >
-                            <span className="w-3 h-3">🧠</span>
+                            <FontAwesomeIcon icon={faBrain} className="w-3 h-3" />
                           </Button>
                         )}
 
@@ -415,13 +426,17 @@ export const ChatBody = forwardRef<HTMLDivElement, ChatBodyProps>(
                           <Button
                             variant="ghost"
                             size="sm"
-                            onClick={() => onSummarize(
-                              typeof message.content === 'string' ? message.content : JSON.stringify(message.content)
-                            )}
+                            onClick={() =>
+                              onSummarize(
+                                typeof message.content === 'string'
+                                  ? message.content
+                                  : JSON.stringify(message.content)
+                              )
+                            }
                             className="h-6 w-6 p-0"
                             title="Summarize this"
                           >
-                            <span className="w-3 h-3">✨</span>
+                            <FontAwesomeIcon icon={faWandMagicSparkles} className="w-3 h-3" />
                           </Button>
                         )}
 
@@ -438,33 +453,25 @@ export const ChatBody = forwardRef<HTMLDivElement, ChatBodyProps>(
                                 onClick={() => onEditMessage(message)}
                                 className="h-6 w-6 p-0"
                               >
-                                <Pencil className="w-3 h-3" />
+                                <FontAwesomeIcon icon={faPen} className="w-3 h-3" />
                               </Button>
                             ) : null;
                           })()
                         )}
 
-                        {message.role === 'assistant' && index === conversation?.messages.length - 1 && !message.failed && onRegenerateMessage && (
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => onRegenerateMessage(message.id)}
-                            className="h-6 w-6 p-0"
-                          >
-                            <RotateCcw className="w-3 h-3" />
-                          </Button>
-                        )}
-
-                        {message.failed && onRetryMessage && (
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => onRetryMessage(message.id)}
-                            className="h-6 w-6 p-0 text-accent hover:text-accent/90"
-                          >
-                            <RotateCcw className="w-3 h-3" />
-                          </Button>
-                        )}
+                        {message.role === 'assistant' && onRetryMessage &&
+                          (message.failed || index === conversation?.messages.length - 1) && (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => onRetryMessage(message.id)}
+                              className={`h-6 w-6 p-0 ${
+                                message.failed ? 'text-accent hover:text-accent/90' : ''
+                              }`}
+                            >
+                              <FontAwesomeIcon icon={faRotateRight} className="w-3 h-3" />
+                            </Button>
+                          )}
                       </div>
                     </div>
                   </div>

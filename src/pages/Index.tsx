@@ -852,29 +852,56 @@ const Index = () => {
         }, delay);
       }
     } catch (error) {
-      const failedMessage: Message = {
-        id: assistantMessage.id,
-        content: 'Sorry, I encountered an error. Please try again.',
-        role: 'assistant',
-        timestamp: new Date(),
-        failed: true,
-        profileId: currentProfile.id,
-      };
+      try {
+        const data = await sendChat({
+          model: currentProfile.model,
+          messages: trimHistory(chatMessages),
+          temperature: currentProfile.temperature,
+          max_tokens: currentProfile.maxTokens,
+        });
+        const finalContent = data.choices?.[0]?.message?.content || '';
+        const finalMsg: Message = {
+          id: assistantMessage.id,
+          content: finalContent,
+          role: 'assistant',
+          timestamp: new Date(),
+          profileId: currentProfile.id,
+        };
+        const finalConv: Conversation = {
+          ...updatedConversation,
+          messages: [...updatedConversation.messages, finalMsg],
+          lastMessage: finalContent,
+          timestamp: new Date(),
+        };
+        setCurrentConversation(finalConv);
+        setConversations(prev => prev.map(conv =>
+          conv.id === conversation.id ? finalConv : conv
+        ));
+      } catch (err) {
+        const failedMessage: Message = {
+          id: assistantMessage.id,
+          content: 'Sorry, I encountered an error. Please try again.',
+          role: 'assistant',
+          timestamp: new Date(),
+          failed: true,
+          profileId: currentProfile.id,
+        };
 
-      const errorConversation = {
-        ...updatedConversation,
-        messages: [...updatedConversation.messages, failedMessage],
-        lastMessage: 'Error occurred',
-        timestamp: new Date(),
-      };
+        const errorConversation = {
+          ...updatedConversation,
+          messages: [...updatedConversation.messages, failedMessage],
+          lastMessage: 'Error occurred',
+          timestamp: new Date(),
+        };
 
-      setCurrentConversation(errorConversation);
-      setConversations(prev => prev.map(conv =>
-        conv.id === conversation.id ? errorConversation : conv
-      ));
+        setCurrentConversation(errorConversation);
+        setConversations(prev => prev.map(conv =>
+          conv.id === conversation.id ? errorConversation : conv
+        ));
 
-      const emsg = (error instanceof Error && error.message) ? error.message : 'Failed to get AI response. Please try again.';
-      toast.error(emsg);
+        const emsg = (err instanceof Error && err.message) ? err.message : 'Failed to get AI response. Please try again.';
+        toast.error(emsg);
+      }
     }
   } finally {
     setIsTyping(false);
@@ -885,28 +912,6 @@ const Index = () => {
   const handleRetryMessage = (messageId: string) => {
     if (!currentConversation) return;
     
-    const messageIndex = currentConversation.messages.findIndex(msg => msg.id === messageId);
-    if (messageIndex > 0) {
-      const userMessage = currentConversation.messages[messageIndex - 1];
-      if (userMessage.role === 'user') {
-        const updatedMessages = currentConversation.messages.slice(0, messageIndex - 1);
-        const updatedConversation = {
-          ...currentConversation,
-          messages: updatedMessages
-        };
-        setCurrentConversation(updatedConversation);
-        setConversations(prev => prev.map(conv =>
-          conv.id === currentConversation.id ? updatedConversation : conv
-        ));
-
-        handleSendMessage(userMessage.content, updatedConversation);
-      }
-    }
-  };
-
-  const handleRegenerateMessage = (messageId: string) => {
-    if (!currentConversation) return;
-
     const messageIndex = currentConversation.messages.findIndex(msg => msg.id === messageId);
     if (messageIndex > 0) {
       const userMessage = currentConversation.messages[messageIndex - 1];
@@ -1145,7 +1150,6 @@ const Index = () => {
           currentProfile={currentProfile}
           isTyping={isTyping}
           onRetryMessage={handleRetryMessage}
-          onRegenerateMessage={handleRegenerateMessage}
           onEditMessage={handleStartEditMessage}
           onSendMessage={handleSendMessage}
           onNewChat={handleNewChat}

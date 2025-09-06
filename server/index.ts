@@ -27,6 +27,7 @@ type ChatBody = { messages: Array<{ role: string; content: string }>; model: str
 
 app.post('/api/chat', authenticate, rateLimit, validateChat, async (req: Request, res: Response) => {
   const { messages, model, max_tokens } = req.body as ChatBody;
+  const apiKey = req.get('x-api-key') || undefined;
   const turn = messages.length;
   const trimmed = trimHistory(messages);
   const requestId = `${Date.now()}-${randomUUID().slice(0,8)}`;
@@ -35,7 +36,7 @@ app.post('/api/chat', authenticate, rateLimit, validateChat, async (req: Request
   const timeout = setTimeout(() => controller.abort(), 35000);
   try {
     const start = Date.now();
-    const data = await callLLM({ messages: trimmed, model, maxTokens: max_tokens, signal: controller.signal, requestId });
+    const data = await callLLM({ messages: trimmed, model, maxTokens: max_tokens, signal: controller.signal, requestId, apiKey });
     const ms = Date.now() - start;
     console.log(`[CHAT] id=${requestId} turn=${turn} status=200 t=${ms}ms`);
     res.json(data);

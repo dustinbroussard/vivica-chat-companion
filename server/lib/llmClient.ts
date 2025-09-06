@@ -3,7 +3,7 @@ const CACHE_TTL = 60_000;
 
 export async function callLLM({
   messages, model, signal, maxTokens = 512,
-  retry = 2, requestId
+  retry = 2, requestId, apiKey
 }: {
   messages: Array<{role:string; content:string}>;
   model: string;
@@ -11,21 +11,23 @@ export async function callLLM({
   maxTokens?: number;
   retry?: number;
   requestId: string;
+  apiKey?: string;
 }) {
   const start = Date.now();
   const body = { model, messages, max_tokens: maxTokens, stream: false };
-  const key = JSON.stringify({ model, messages, maxTokens });
-  const cached = cache.get(key);
+  const cacheKey = JSON.stringify({ model, messages, maxTokens });
+  const cached = cache.get(cacheKey);
   if (cached && Date.now() - cached.ts < CACHE_TTL) {
     return cached.data;
   }
   const url = process.env.LLM_BASE_URL ?? "https://openrouter.ai/api/v1/chat/completions";
   const headers = {
     "Content-Type": "application/json",
-    "Authorization": `Bearer ${process.env.OPENROUTER_API_KEY}`,
     "HTTP-Referer": process.env.APP_URL ?? "http://localhost",
     "X-Title": "Vivica"
   } as Record<string, string>;
+  const authKey = apiKey || process.env.OPENROUTER_API_KEY;
+  if (authKey) headers["Authorization"] = `Bearer ${authKey}`;
 
   for (let attempt = 0; attempt <= retry; attempt++) {
     try {
@@ -45,7 +47,7 @@ export async function callLLM({
         throw new Error(`LLM_ERROR status=${res.status} body=${text.slice(0, 500)}`);
       }
       const json = await res.json();
-      cache.set(key, { ts: Date.now(), data: json });
+      cache.set(cacheKey, { ts: Date.now(), data: json });
       return json;
     } catch (e) {
       if (attempt >= retry) throw e;

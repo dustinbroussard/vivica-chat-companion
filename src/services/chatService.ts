@@ -527,7 +527,24 @@ export class ChatService {
       data: { isCodeRequest: request?.isCodeRequest }
     };
     yield startSignal;
-    
+
+    // If the server didn't return a streaming response, fall back to
+    // reading the full body once and emitting a single chunk. This
+    // prevents immediate failures when the backend doesn't support SSE.
+    const ctype = response.headers.get('content-type') || '';
+    if (!ctype.includes('text/event-stream')) {
+      try {
+        const data = await response.json();
+        const content = data?.choices?.[0]?.message?.content;
+        if (content) {
+          yield { content, isCodeRequest: request?.isCodeRequest };
+        }
+      } catch {
+        throw new Error('Invalid non-stream response');
+      }
+      return;
+    }
+
     const reader = response.body?.getReader();
     if (!reader) {
       throw new Error('No response body');

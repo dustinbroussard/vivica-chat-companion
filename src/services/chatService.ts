@@ -140,7 +140,7 @@ export class ChatService {
     this.apiKey = apiKey;
     // Allow API URL override via parameter or Vite env var
     this.baseUrl =
-      apiUrl || import.meta.env.VITE_OPENROUTER_API_URL || 'https://openrouter.ai/api/v1';
+      apiUrl || import.meta.env.VITE_OPENROUTER_API_URL || '/api';
     if (this.baseUrl.startsWith('http://') && window.location.protocol === 'https:') {
       console.warn('Using HTTP API endpoint on HTTPS page may be blocked due to mixed content.');
     }
@@ -276,16 +276,21 @@ export class ChatService {
     const referer = /^https?:/i.test(window.location.origin)
       ? window.location.origin
       : undefined;
-    const headers: Record<string, string> = {
-      'Authorization': `Bearer ${apiKey}`,
-      'Content-Type': 'application/json',
-      'X-Title': 'Vivica Chat Companion',
-    };
-    if (referer) {
-      headers['HTTP-Referer'] = referer;
+    const isOpenRouter = /openrouter/i.test(this.baseUrl);
+    const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+    if (isOpenRouter) {
+      headers['Authorization'] = `Bearer ${apiKey}`;
+      headers['X-Title'] = 'Vivica Chat Companion';
+      if (referer) {
+        headers['HTTP-Referer'] = referer;
+      }
+    } else {
+      headers['X-API-Key'] = apiKey;
     }
 
-    const endpoint = `${this.baseUrl}/chat/completions`;
+    const endpoint = isOpenRouter
+      ? `${this.baseUrl}/chat/completions`
+      : `${this.baseUrl}/chat`;
     const send = async () => {
       const controller = new AbortController();
       const timer = setTimeout(() => controller.abort(), timeoutMs);
@@ -387,7 +392,10 @@ export class ChatService {
 
     const rid = (globalThis.crypto as { randomUUID?: () => string } | undefined)?.randomUUID?.() ??
       Math.random().toString(36).slice(2);
-    const endpoint = `${this.baseUrl}/chat/completions`;
+    const isOpenRouter = /openrouter/i.test(this.baseUrl);
+    const endpoint = isOpenRouter
+      ? `${this.baseUrl}/chat/completions`
+      : `${this.baseUrl}/chat`;
     const inChars = apiRequest.messages?.reduce((s, m) => s + m.content.length, 0) ?? 0;
     const { model: _m, messages: _msg, ...params } = apiRequest as Record<string, unknown>;
     console.log('[AI][send]', { rid, model: effectiveModel, endpoint, inChars, params });

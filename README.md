@@ -59,8 +59,13 @@
 
 1. **Clone or download the repo.**
 2. `npm install`
-3. `npm run dev` (or `npm run build` for production)
-4. Open in your browser. Vivica is ready!
+3. In one terminal run `npm run server` to start the API server.
+4. In another terminal run `npm run dev` (or `npm run build` for production).
+5. Open in your browser. Vivica is ready!
+
+If no OpenRouter API key is configured, the server falls back to a mock model so
+you can still try the app. Set `OPENROUTER_API_KEY` and restart the server to use
+real models.
 
 ## Usage Notes
 

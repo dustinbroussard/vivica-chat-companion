@@ -20,14 +20,21 @@ export async function callLLM({
   if (cached && Date.now() - cached.ts < CACHE_TTL) {
     return cached.data;
   }
-  const url = process.env.LLM_BASE_URL ?? "https://openrouter.ai/api/v1/chat/completions";
+  let url = process.env.LLM_BASE_URL ?? "https://openrouter.ai/api/v1/chat/completions";
   const headers = {
     "Content-Type": "application/json",
     "HTTP-Referer": process.env.APP_URL ?? "http://localhost",
-    "X-Title": "Vivica"
+    "X-Title": "Vivica",
   } as Record<string, string>;
   const authKey = apiKey || process.env.OPENROUTER_API_KEY;
-  if (authKey) headers["Authorization"] = `Bearer ${authKey}`;
+  if (authKey) {
+    headers["Authorization"] = `Bearer ${authKey}`;
+  } else if (!process.env.LLM_BASE_URL) {
+    // Development fallback when no API key is provided. This keeps the app functional
+    // by routing requests to the local mock LLM endpoint instead of failing immediately.
+    const port = process.env.PORT || 3001;
+    url = `http://localhost:${port}/mock-llm`;
+  }
 
   for (let attempt = 0; attempt <= retry; attempt++) {
     try {

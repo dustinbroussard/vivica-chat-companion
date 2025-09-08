@@ -33,3 +33,20 @@ test('callLLM retries on network error', async () => {
   assert.deepEqual(res.choices.length, 0);
   global.fetch = orig as typeof fetch;
 });
+
+test('callLLM uses mock endpoint without API key', async () => {
+  const origFetch = global.fetch;
+  const origPort = process.env.PORT;
+  delete process.env.LLM_BASE_URL;
+  delete process.env.OPENROUTER_API_KEY;
+  process.env.PORT = '4242';
+  let called = '';
+  global.fetch = async (url: any) => {
+    called = String(url);
+    return { status: 200, ok: true, json: async () => ({ choices: [] }) } as unknown as Response;
+  };
+  await callLLM({ messages: [{ role: 'user', content: 'hi' }], model: 'x', signal: new AbortController().signal, requestId: 'z' });
+  assert.equal(called, 'http://localhost:4242/mock-llm');
+  global.fetch = origFetch as typeof fetch;
+  if (origPort) process.env.PORT = origPort; else delete process.env.PORT;
+});
